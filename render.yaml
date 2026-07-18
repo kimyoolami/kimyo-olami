@@ -2,6 +2,7 @@ services:
   - type: web
     name: kimyo-olami-api
     runtime: docker
+    plan: free
     rootDir: backend
     dockerfilePath: ./Dockerfile
     dockerContext: .
