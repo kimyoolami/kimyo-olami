@@ -43,6 +43,7 @@ describe('AuthService', () => {
     const initData = new URLSearchParams({
       user: telegramUser,
       auth_date: authDate,
+      signature: 'telegram-ed25519-signature',
       hash,
     }).toString();
 
