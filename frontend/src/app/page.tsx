@@ -1,3 +1,5 @@
+"use client";
+
 import {
   BookOpen,
   Crown,
@@ -9,6 +11,14 @@ import {
   Search,
   User,
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  authenticateTelegram,
+  getCourses,
+  type AuthUser,
+  type CourseSummary,
+} from "@/lib/api";
 
 const courses = [
   {
@@ -29,12 +39,38 @@ const courses = [
 ];
 
 export default function HomePage() {
+  const [apiCourses, setApiCourses] = useState<CourseSummary[]>([]);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    void getCourses().then(setApiCourses).catch(() => setApiCourses([]));
+    const telegram = (
+      window as typeof window & {
+        Telegram?: { WebApp?: { initData?: string; ready?: () => void } };
+      }
+    ).Telegram?.WebApp;
+    telegram?.ready?.();
+    if (telegram?.initData) {
+      void authenticateTelegram(telegram.initData).then(setUser).catch(() => undefined);
+    }
+  }, []);
+
+  const displayedCourses = apiCourses.length
+    ? apiCourses.map((course) => ({
+        ...course,
+        subtitle: course.description ?? `${course._count.lessons} ta dars`,
+        icon: FlaskConical,
+      }))
+    : courses.map((course) => ({ ...course, slug: "#" }));
+
   return (
     <main className="min-h-screen bg-black pb-28 text-white">
       <section className="mx-auto max-w-md px-5 pt-6">
         <header className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-zinc-400">Xush kelibsiz</p>
+            <p className="text-sm text-zinc-400">
+              Xush kelibsiz{user?.firstName ? `, ${user.firstName}` : ""}
+            </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
               Kimyo Olami
             </h1>
@@ -75,19 +111,20 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mt-8">
+        <section id="courses" className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Mashhur yo‘nalishlar</h2>
             <button className="text-sm text-blue-400">Barchasi</button>
           </div>
 
           <div className="mt-4 space-y-3">
-            {courses.map((course) => {
+            {displayedCourses.map((course) => {
               const Icon = course.icon;
 
               return (
-                <article
+                <Link
                   key={course.title}
+                  href={course.slug === "#" ? "#" : `/courses/${course.slug}`}
                   className="flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900 p-4"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600/15 text-blue-400">
@@ -102,13 +139,13 @@ export default function HomePage() {
                   </div>
 
                   <span className="text-zinc-600">›</span>
-                </article>
+                </Link>
               );
             })}
           </div>
         </section>
 
-        <section className="mt-8">
+        <section id="materials" className="mt-8 scroll-mt-6">
           <h2 className="text-xl font-semibold">Materiallar</h2>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -128,25 +165,25 @@ export default function HomePage() {
       </section>
 
       <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-md -translate-x-1/2 items-center justify-around border-t border-white/10 bg-black/95 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-3 backdrop-blur">
-        <button className="flex flex-col items-center gap-1 text-blue-400">
+        <Link href="/" className="flex flex-col items-center gap-1 text-blue-400">
           <Home size={21} />
           <span className="text-xs">Bosh sahifa</span>
-        </button>
+        </Link>
 
-        <button className="flex flex-col items-center gap-1 text-zinc-500">
+        <a href="#courses" className="flex flex-col items-center gap-1 text-zinc-500">
           <BookOpen size={21} />
           <span className="text-xs">Kurslar</span>
-        </button>
+        </a>
 
-        <button className="flex flex-col items-center gap-1 text-zinc-500">
+        <a href="#materials" className="flex flex-col items-center gap-1 text-zinc-500">
           <FileText size={21} />
           <span className="text-xs">Materiallar</span>
-        </button>
+        </a>
 
-        <button className="flex flex-col items-center gap-1 text-zinc-500">
+        <Link href="/profile" className="flex flex-col items-center gap-1 text-zinc-500">
           <User size={21} />
           <span className="text-xs">Profil</span>
-        </button>
+        </Link>
       </nav>
     </main>
   );

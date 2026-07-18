@@ -1,0 +1,41 @@
+CREATE TYPE "UserRole" AS ENUM ('STUDENT', 'ADMIN');
+CREATE TYPE "LessonType" AS ENUM ('TEXT', 'VIDEO', 'PDF');
+CREATE TYPE "ProgressStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED');
+
+CREATE TABLE IF NOT EXISTS "users" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "telegram_id" BIGINT NOT NULL, "first_name" TEXT, "last_name" TEXT, "username" TEXT, "role" "UserRole" NOT NULL DEFAULT 'STUDENT', "is_premium" BOOLEAN NOT NULL DEFAULT false, "premium_until" TIMESTAMPTZ(6), "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "users_pkey" PRIMARY KEY ("id"));
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" "UserRole" NOT NULL DEFAULT 'STUDENT';
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "premium_until" TIMESTAMPTZ(6);
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMPTZ(6);
+UPDATE "users" SET "is_premium" = false WHERE "is_premium" IS NULL;
+UPDATE "users" SET "created_at" = CURRENT_TIMESTAMP WHERE "created_at" IS NULL;
+UPDATE "users" SET "updated_at" = CURRENT_TIMESTAMP WHERE "updated_at" IS NULL;
+ALTER TABLE "users" ALTER COLUMN "is_premium" SET DEFAULT false;
+ALTER TABLE "users" ALTER COLUMN "is_premium" SET NOT NULL;
+ALTER TABLE "users" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "users" ALTER COLUMN "created_at" SET NOT NULL;
+ALTER TABLE "users" ALTER COLUMN "updated_at" SET NOT NULL;
+CREATE TABLE "courses" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "slug" TEXT NOT NULL, "title" TEXT NOT NULL, "description" TEXT, "image_url" TEXT, "is_premium" BOOLEAN NOT NULL DEFAULT false, "is_published" BOOLEAN NOT NULL DEFAULT false, "order" INTEGER NOT NULL DEFAULT 0, "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "courses_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "lessons" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "course_id" UUID NOT NULL, "slug" TEXT NOT NULL, "title" TEXT NOT NULL, "description" TEXT, "type" "LessonType" NOT NULL DEFAULT 'TEXT', "content" TEXT, "media_url" TEXT, "duration" INTEGER, "is_preview" BOOLEAN NOT NULL DEFAULT false, "is_published" BOOLEAN NOT NULL DEFAULT false, "order" INTEGER NOT NULL DEFAULT 0, "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "lessons_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "lesson_progress" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "user_id" UUID NOT NULL, "lesson_id" UUID NOT NULL, "status" "ProgressStatus" NOT NULL DEFAULT 'NOT_STARTED', "completed_at" TIMESTAMPTZ(6), "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "lesson_progress_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "quizzes" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "lesson_id" UUID NOT NULL, "title" TEXT NOT NULL, "pass_score" INTEGER NOT NULL DEFAULT 70, CONSTRAINT "quizzes_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "questions" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "quiz_id" UUID NOT NULL, "text" TEXT NOT NULL, "order" INTEGER NOT NULL DEFAULT 0, CONSTRAINT "questions_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "answer_options" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "question_id" UUID NOT NULL, "text" TEXT NOT NULL, "is_correct" BOOLEAN NOT NULL DEFAULT false, CONSTRAINT "answer_options_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "quiz_attempts" ("id" UUID NOT NULL DEFAULT gen_random_uuid(), "user_id" UUID NOT NULL, "quiz_id" UUID NOT NULL, "score" INTEGER NOT NULL, "passed" BOOLEAN NOT NULL, "submitted_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "quiz_attempts_pkey" PRIMARY KEY ("id"));
+
+CREATE UNIQUE INDEX IF NOT EXISTS "users_telegram_id_key" ON "users"("telegram_id");
+CREATE UNIQUE INDEX "courses_slug_key" ON "courses"("slug");
+CREATE INDEX "lessons_course_id_order_idx" ON "lessons"("course_id", "order");
+CREATE UNIQUE INDEX "lessons_course_id_slug_key" ON "lessons"("course_id", "slug");
+CREATE UNIQUE INDEX "lesson_progress_user_id_lesson_id_key" ON "lesson_progress"("user_id", "lesson_id");
+CREATE UNIQUE INDEX "quizzes_lesson_id_key" ON "quizzes"("lesson_id");
+CREATE INDEX "questions_quiz_id_order_idx" ON "questions"("quiz_id", "order");
+CREATE INDEX "quiz_attempts_user_id_quiz_id_idx" ON "quiz_attempts"("user_id", "quiz_id");
+
+ALTER TABLE "lessons" ADD CONSTRAINT "lessons_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "lesson_progress" ADD CONSTRAINT "lesson_progress_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "lesson_progress" ADD CONSTRAINT "lesson_progress_lesson_id_fkey" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "quizzes" ADD CONSTRAINT "quizzes_lesson_id_fkey" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "questions" ADD CONSTRAINT "questions_quiz_id_fkey" FOREIGN KEY ("quiz_id") REFERENCES "quizzes"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "answer_options" ADD CONSTRAINT "answer_options_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "questions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "quiz_attempts" ADD CONSTRAINT "quiz_attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "quiz_attempts" ADD CONSTRAINT "quiz_attempts_quiz_id_fkey" FOREIGN KEY ("quiz_id") REFERENCES "quizzes"("id") ON DELETE CASCADE ON UPDATE CASCADE;

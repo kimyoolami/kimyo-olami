@@ -1,0 +1,168 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ProgressStatus } from '../../generated/prisma/enums';
+import { PrismaService } from '../prisma/prisma.service';
+import { SubmitQuizDto } from './dto/submit-quiz.dto';
+
+@Injectable()
+export class LearningService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  getProgress(userId: string) {
+    return this.prisma.lessonProgress.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        status: true,
+        completedAt: true,
+        updatedAt: true,
+        lesson: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            course: { select: { slug: true, title: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async updateProgress(
+    userId: string,
+    lessonId: string,
+    status: ProgressStatus,
+  ) {
+    await this.assertLessonAccess(userId, lessonId);
+    return this.prisma.lessonProgress.upsert({
+      where: { userId_lessonId: { userId, lessonId } },
+      update: {
+        status,
+        completedAt: status === ProgressStatus.COMPLETED ? new Date() : null,
+      },
+      create: {
+        userId,
+        lessonId,
+        status,
+        completedAt: status === ProgressStatus.COMPLETED ? new Date() : null,
+      },
+    });
+  }
+
+  async getQuiz(userId: string, quizId: string) {
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id: quizId },
+      select: {
+        id: true,
+        title: true,
+        passScore: true,
+        lesson: {
+          select: {
+            id: true,
+            title: true,
+            isPublished: true,
+            course: { select: { isPremium: true, isPublished: true } },
+          },
+        },
+        questions: {
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            text: true,
+            order: true,
+            options: { select: { id: true, text: true } },
+          },
+        },
+      },
+    });
+    if (!quiz || !quiz.lesson.isPublished || !quiz.lesson.course.isPublished) {
+      throw new NotFoundException('Test topilmadi');
+    }
+    await this.assertPremiumAccess(userId, quiz.lesson.course.isPremium);
+    return quiz;
+  }
+
+  async submitQuiz(userId: string, quizId: string, dto: SubmitQuizDto) {
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        lesson: { include: { course: true } },
+        questions: { include: { options: true } },
+      },
+    });
+    if (!quiz || !quiz.lesson.isPublished || !quiz.lesson.course.isPublished) {
+      throw new NotFoundException('Test topilmadi');
+    }
+    await this.assertPremiumAccess(userId, quiz.lesson.course.isPremium);
+
+    const answers = new Map(
+      dto.answers.map((answer) => [answer.questionId, answer.optionId]),
+    );
+    if (answers.size !== quiz.questions.length) {
+      throw new BadRequestException('Barcha savollarga bittadan javob bering');
+    }
+    let correct = 0;
+    for (const question of quiz.questions) {
+      const selectedId = answers.get(question.id);
+      const selected = question.options.find(
+        (option) => option.id === selectedId,
+      );
+      if (!selected)
+        throw new BadRequestException('Javoblardan biri noto‘g‘ri');
+      if (selected.isCorrect) correct += 1;
+    }
+
+    const score = Math.round((correct / quiz.questions.length) * 100);
+    const passed = score >= quiz.passScore;
+    const attempt = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.quizAttempt.create({
+        data: { userId, quizId, score, passed },
+      });
+      if (passed) {
+        await transaction.lessonProgress.upsert({
+          where: { userId_lessonId: { userId, lessonId: quiz.lessonId } },
+          update: { status: ProgressStatus.COMPLETED, completedAt: new Date() },
+          create: {
+            userId,
+            lessonId: quiz.lessonId,
+            status: ProgressStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+      }
+      return created;
+    });
+    return {
+      attemptId: attempt.id,
+      score,
+      passed,
+      correct,
+      total: quiz.questions.length,
+    };
+  }
+
+  private async assertLessonAccess(userId: string, lessonId: string) {
+    const lesson = await this.prisma.lesson.findFirst({
+      where: { id: lessonId, isPublished: true, course: { isPublished: true } },
+      select: { course: { select: { isPremium: true } } },
+    });
+    if (!lesson) throw new NotFoundException('Dars topilmadi');
+    await this.assertPremiumAccess(userId, lesson.course.isPremium);
+  }
+
+  private async assertPremiumAccess(userId: string, premiumRequired: boolean) {
+    if (!premiumRequired) return;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isPremium: true, premiumUntil: true },
+    });
+    const active =
+      user?.isPremium === true &&
+      (user.premiumUntil === null || user.premiumUntil.getTime() > Date.now());
+    if (!active) throw new ForbiddenException('Premium obuna talab qilinadi');
+  }
+}
