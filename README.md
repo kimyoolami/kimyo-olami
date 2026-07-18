@@ -96,3 +96,9 @@ npm run build
 - Haqiqiy `TELEGRAM_BOT_TOKEN`
 - Backend CORS uchun aniq `FRONTEND_URL`
 - Tashqi video/PDF fayllari uchun barqaror HTTPS storage
+
+## Render + Vercel deploy
+
+Backend uchun Render Dashboard’da `New > Blueprint` tanlang va GitHub’dagi shu repository’ni ulang. Root’dagi `render.yaml` Docker build, health check va majburiy environment kalitlarini avtomatik sozlaydi.
+
+Frontend uchun Vercel’da repository’ni import qiling va Root Directory sifatida `frontend`ni tanlang. `NEXT_PUBLIC_API_URL` qiymati Render bergan backend URL’iga `/api` qo‘shilgan ko‘rinishda bo‘lishi kerak.
