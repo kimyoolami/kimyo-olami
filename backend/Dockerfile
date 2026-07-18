@@ -15,4 +15,4 @@ COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 EXPOSE 3001
-CMD ["sh", "-c", "npm run prisma:migrate && node dist/main"]
+CMD ["sh", "-c", "npm run prisma:migrate && node dist/src/main.js"]
