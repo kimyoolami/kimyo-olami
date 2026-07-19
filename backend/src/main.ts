@@ -10,7 +10,26 @@ async function bootstrap() {
   const allowedOrigins = process.env.FRONTEND_URL?.split(',').map((origin) =>
     origin.trim(),
   );
-  app.enableCors({ origin: allowedOrigins?.length ? allowedOrigins : false });
+  app.enableCors({
+    origin(
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) {
+      if (!origin || allowedOrigins?.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      try {
+        const url = new URL(origin);
+        const isVercelPreview =
+          url.protocol === 'https:' && url.hostname.endsWith('.vercel.app');
+        callback(null, isVercelPreview);
+      } catch {
+        callback(null, false);
+      }
+    },
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
