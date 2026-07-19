@@ -46,6 +46,28 @@ export function createAdminCourse(data: {
   });
 }
 
+export function updateAdminCourse(
+  id: string,
+  data: Partial<{
+    title: string;
+    description: string;
+    isPremium: boolean;
+    isPublished: boolean;
+    order: number;
+  }>,
+) {
+  return authorizedRequest<AdminCourse>(`/admin/courses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteAdminCourse(id: string) {
+  return authorizedRequest<{ deleted: true }>(`/admin/courses/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export interface AdminLesson {
   id: string;
   slug: string;

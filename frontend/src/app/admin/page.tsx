@@ -1,9 +1,16 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Crown, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Crown, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { createAdminCourse, getAdminCourses, getProfile, type AdminCourse } from "@/lib/api";
+import {
+  createAdminCourse,
+  deleteAdminCourse,
+  getAdminCourses,
+  getProfile,
+  updateAdminCourse,
+  type AdminCourse,
+} from "@/lib/api";
 
 export default function AdminPage() {
   const [courses, setCourses] = useState<AdminCourse[]>([]);
@@ -44,6 +51,33 @@ export default function AdminPage() {
     }
   }
 
+  async function togglePublished(course: AdminCourse) {
+    setMessage("");
+    try {
+      const updated = await updateAdminCourse(course.id, {
+        isPublished: !course.isPublished,
+      });
+      setCourses((current) =>
+        current.map((item) => (item.id === course.id ? { ...item, ...updated } : item)),
+      );
+      setMessage(updated.isPublished ? "Kurs nashr qilindi" : "Kurs qoralamaga olindi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kursni yangilab bo‘lmadi");
+    }
+  }
+
+  async function removeCourse(course: AdminCourse) {
+    if (!window.confirm(`“${course.title}” kursi va uning darslari o‘chirilsinmi?`)) return;
+    setMessage("");
+    try {
+      await deleteAdminCourse(course.id);
+      setCourses((current) => current.filter((item) => item.id !== course.id));
+      setMessage("Kurs o‘chirildi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kursni o‘chirib bo‘lmadi");
+    }
+  }
+
   if (allowed === null) return <main className="min-h-screen bg-black p-8 text-center text-zinc-400">Tekshirilmoqda…</main>;
   if (!allowed) return <main className="min-h-screen bg-black p-8 text-center text-red-400">Bu sahifa faqat administrator uchun.</main>;
 
@@ -69,14 +103,31 @@ export default function AdminPage() {
         <h2 className="text-xl font-semibold">Kurslar</h2>
         <div className="mt-4 space-y-3">
           {courses.map((course) => (
-            <Link href={`/admin/courses/${course.id}`} key={course.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900 p-4">
-              <BookOpen className="text-blue-400" />
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate font-medium">{course.title}</h3>
-                <p className="text-xs text-zinc-500">{course._count.lessons} dars · {course.isPublished ? "Nashr qilingan" : "Qoralama"}</p>
+            <article key={course.id} className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+              <Link href={`/admin/courses/${course.id}`} className="flex items-center gap-4">
+                <BookOpen className="text-blue-400" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-medium">{course.title}</h3>
+                  <p className="text-xs text-zinc-500">{course._count.lessons} dars · {course.isPublished ? "Nashr qilingan" : "Qoralama"}</p>
+                </div>
+                {course.isPremium && <Crown size={18} className="text-amber-400" />}
+              </Link>
+              <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
+                <button
+                  onClick={() => void togglePublished(course)}
+                  className="flex-1 rounded-xl bg-blue-600/15 px-3 py-2 text-sm text-blue-400"
+                >
+                  {course.isPublished ? "Qoralamaga olish" : "Nashr qilish"}
+                </button>
+                <button
+                  onClick={() => void removeCourse(course)}
+                  aria-label="Kursni o‘chirish"
+                  className="rounded-xl bg-red-500/10 px-3 text-red-400"
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
-              {course.isPremium && <Crown size={18} className="text-amber-400" />}
-            </Link>
+            </article>
           ))}
         </div>
       </section>

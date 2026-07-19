@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, BookOpen, CheckCircle2, Crown, User } from "lucide-react";
+import { Award, BookOpen, CheckCircle2, Crown, Settings, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getProfile, getProgress, type AuthUser, type ProgressItem } from "@/lib/api";
@@ -32,6 +32,15 @@ export default function ProfilePage() {
           </span>
         )}
       </section>
+
+      {user?.role === "ADMIN" && (
+        <Link
+          href="/admin"
+          className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-blue-600 p-4 font-semibold"
+        >
+          <Settings size={20} /> Kontent boshqaruvi
+        </Link>
+      )}
 
       {message ? (
         <p className="mt-8 rounded-2xl border border-white/10 bg-zinc-900 p-5 text-center text-zinc-400">{message}</p>
