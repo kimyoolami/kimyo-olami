@@ -89,6 +89,30 @@ export function createAdminLesson(courseId: string, data: Record<string, unknown
   });
 }
 
+export function updateAdminLesson(
+  id: string,
+  data: Partial<{
+    title: string;
+    description: string;
+    content: string;
+    mediaUrl: string;
+    isPreview: boolean;
+    isPublished: boolean;
+    order: number;
+  }>,
+) {
+  return authorizedRequest<AdminLesson>(`/admin/lessons/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteAdminLesson(id: string) {
+  return authorizedRequest<{ deleted: true }>(`/admin/lessons/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export function createAdminQuiz(lessonId: string, data: Record<string, unknown>) {
   return authorizedRequest(`/admin/lessons/${lessonId}/quiz`, {
     method: "POST",

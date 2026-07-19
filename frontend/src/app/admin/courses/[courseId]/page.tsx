@@ -1,9 +1,16 @@
 "use client";
 
-import { ArrowLeft, FileQuestion, Plus } from "lucide-react";
+import { ArrowLeft, FileQuestion, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, use, useEffect, useState } from "react";
-import { createAdminLesson, createAdminQuiz, getAdminLessons, type AdminLesson } from "@/lib/api";
+import {
+  createAdminLesson,
+  createAdminQuiz,
+  deleteAdminLesson,
+  getAdminLessons,
+  updateAdminLesson,
+  type AdminLesson,
+} from "@/lib/api";
 
 export default function AdminCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = use(params);
@@ -55,6 +62,34 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
     }
   }
 
+  async function togglePublished(lesson: AdminLesson) {
+    setMessage("");
+    try {
+      const updated = await updateAdminLesson(lesson.id, {
+        isPublished: !lesson.isPublished,
+      });
+      setLessons((current) =>
+        current.map((item) => (item.id === lesson.id ? { ...item, ...updated } : item)),
+      );
+      setMessage(updated.isPublished ? "Dars nashr qilindi" : "Dars qoralamaga olindi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Darsni yangilab bo‘lmadi");
+    }
+  }
+
+  async function removeLesson(lesson: AdminLesson) {
+    if (!window.confirm(`“${lesson.title}” darsi o‘chirilsinmi?`)) return;
+    setMessage("");
+    try {
+      await deleteAdminLesson(lesson.id);
+      setLessons((current) => current.filter((item) => item.id !== lesson.id));
+      if (selected?.id === lesson.id) setSelected(null);
+      setMessage("Dars o‘chirildi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Darsni o‘chirib bo‘lmadi");
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-black px-5 py-8 text-white">
       <Link href="/admin" className="inline-flex items-center gap-2 text-zinc-400"><ArrowLeft size={18} /> Admin</Link>
@@ -72,10 +107,27 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
       {message && <p className="mt-4 text-sm text-blue-400">{message}</p>}
       <div className="mt-8 space-y-3">
         {lessons.map((lesson) => (
-          <div key={lesson.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
-            <div className="flex-1"><h3>{lesson.title}</h3><p className="text-xs text-zinc-500">{lesson.type} · {lesson.isPublished ? "Nashr" : "Qoralama"}</p></div>
-            {lesson.quiz ? <span className="text-xs text-emerald-400">Test bor</span> : <button onClick={() => setSelected(lesson)} className="text-blue-400"><FileQuestion /></button>}
-          </div>
+          <article key={lesson.id} className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1"><h3>{lesson.title}</h3><p className="text-xs text-zinc-500">{lesson.type} · {lesson.isPublished ? "Nashr" : "Qoralama"}</p></div>
+              {lesson.quiz ? <span className="text-xs text-emerald-400">Test bor</span> : <button onClick={() => setSelected(lesson)} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
+            </div>
+            <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
+              <button
+                onClick={() => void togglePublished(lesson)}
+                className="flex-1 rounded-xl bg-blue-600/15 px-3 py-2 text-sm text-blue-400"
+              >
+                {lesson.isPublished ? "Qoralamaga olish" : "Nashr qilish"}
+              </button>
+              <button
+                onClick={() => void removeLesson(lesson)}
+                aria-label="Darsni o‘chirish"
+                className="rounded-xl bg-red-500/10 px-3 text-red-400"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          </article>
         ))}
       </div>
       {selected && (
