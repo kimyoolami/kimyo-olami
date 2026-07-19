@@ -5,7 +5,6 @@ import {
   Crown,
   FileText,
   FlaskConical,
-  GraduationCap,
   Home,
   Play,
   Search,
@@ -20,48 +19,43 @@ import {
   type CourseSummary,
 } from "@/lib/api";
 
-const courses = [
-  {
-    title: "Organik kimyo",
-    subtitle: "Nazariya va masalalar",
-    icon: FlaskConical,
-  },
-  {
-    title: "Umumiy kimyo",
-    subtitle: "Asosiy mavzular",
-    icon: GraduationCap,
-  },
-  {
-    title: "Video yechimlar",
-    subtitle: "Murakkab masalalar",
-    icon: Play,
-  },
-];
-
 export default function HomePage() {
-  const [apiCourses, setApiCourses] = useState<CourseSummary[]>([]);
+  const [apiCourses, setApiCourses] = useState<CourseSummary[] | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [coursesError, setCoursesError] = useState(false);
+  const [authError, setAuthError] = useState(false);
 
-  useEffect(() => {
-    void getCourses().then(setApiCourses).catch(() => setApiCourses([]));
+  async function loginWithTelegram() {
     const telegram = (
       window as typeof window & {
         Telegram?: { WebApp?: { initData?: string; ready?: () => void } };
       }
     ).Telegram?.WebApp;
     telegram?.ready?.();
-    if (telegram?.initData) {
-      void authenticateTelegram(telegram.initData).then(setUser).catch(() => undefined);
+    if (!telegram?.initData) return;
+    try {
+      setUser(await authenticateTelegram(telegram.initData));
+      setAuthError(false);
+    } catch {
+      setAuthError(true);
     }
+  }
+
+  useEffect(() => {
+    void getCourses()
+      .then(setApiCourses)
+      .catch(() => {
+        setApiCourses([]);
+        setCoursesError(true);
+      });
+    queueMicrotask(() => void loginWithTelegram());
   }, []);
 
-  const displayedCourses = apiCourses.length
-    ? apiCourses.map((course) => ({
-        ...course,
-        subtitle: course.description ?? `${course._count.lessons} ta dars`,
-        icon: FlaskConical,
-      }))
-    : courses.map((course) => ({ ...course, slug: "#" }));
+  const displayedCourses = (apiCourses ?? []).map((course) => ({
+    ...course,
+    subtitle: course.description ?? `${course._count.lessons} ta dars`,
+    icon: FlaskConical,
+  }));
 
   return (
     <main className="min-h-screen bg-black pb-28 text-white">
@@ -80,6 +74,15 @@ export default function HomePage() {
             <FlaskConical size={22} />
           </div>
         </header>
+
+        {authError && (
+          <button
+            onClick={() => void loginWithTelegram()}
+            className="mt-4 w-full rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-300"
+          >
+            Telegram orqali kirish amalga oshmadi. Qayta urinish
+          </button>
+        )}
 
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3">
           <Search size={20} className="text-zinc-500" />
@@ -118,13 +121,25 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 space-y-3">
+            {apiCourses === null && (
+              <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
+                Kurslar yuklanmoqda…
+              </p>
+            )}
+            {apiCourses?.length === 0 && (
+              <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
+                {coursesError
+                  ? "Kurslarni yuklab bo‘lmadi. Keyinroq qayta urinib ko‘ring."
+                  : "Kurslar tez orada qo‘shiladi."}
+              </p>
+            )}
             {displayedCourses.map((course) => {
               const Icon = course.icon;
 
               return (
                 <Link
                   key={course.title}
-                  href={course.slug === "#" ? "#" : `/courses/${course.slug}`}
+                  href={`/courses/${course.slug}`}
                   className="flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900 p-4"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600/15 text-blue-400">

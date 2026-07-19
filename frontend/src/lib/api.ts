@@ -100,7 +100,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
-  if (!response.ok) throw new Error(`API xatosi: ${response.status}`);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+    const message = Array.isArray(payload?.message)
+      ? payload.message.join(", ")
+      : payload?.message;
+    throw new Error(message ?? `API xatosi: ${response.status}`);
+  }
   return response.json() as Promise<T>;
 }
 
