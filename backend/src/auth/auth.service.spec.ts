@@ -35,7 +35,8 @@ describe('AuthService', () => {
       first_name: 'Ali',
       username: 'ali',
     });
-    const dataCheckString = `auth_date=${authDate}\nuser=${telegramUser}`;
+    const signature = 'telegram-ed25519-signature';
+    const dataCheckString = `auth_date=${authDate}\nsignature=${signature}\nuser=${telegramUser}`;
     const secret = createHmac('sha256', 'WebAppData').update(botToken).digest();
     const hash = createHmac('sha256', secret)
       .update(dataCheckString)
@@ -43,7 +44,7 @@ describe('AuthService', () => {
     const initData = new URLSearchParams({
       user: telegramUser,
       auth_date: authDate,
-      signature: 'telegram-ed25519-signature',
+      signature,
       hash,
     }).toString();
 
