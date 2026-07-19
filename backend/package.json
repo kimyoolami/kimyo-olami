@@ -21,7 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "admin:promote": "ts-node scripts/promote-admin.ts"
+    "admin:promote": "npm run build --silent && node dist/scripts/promote-admin.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
