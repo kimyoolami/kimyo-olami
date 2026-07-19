@@ -1,4 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+// Browser requests stay on the frontend origin and are proxied by Next.js.
+// This keeps Telegram Mini App requests independent of Vercel preview origins
+// and avoids production CORS/environment mismatches.
+const API_URL =
+  typeof window === "undefined"
+    ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api")
+    : "/api";
 
 export interface CourseSummary {
   id: string;
