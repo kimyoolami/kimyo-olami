@@ -12,11 +12,26 @@ import {
   type AdminLesson,
 } from "@/lib/api";
 
+type QuizOptionDraft = { text: string; isCorrect: boolean };
+type QuizQuestionDraft = { text: string; options: QuizOptionDraft[] };
+
+const emptyQuestion = (): QuizQuestionDraft => ({
+  text: "",
+  options: [
+    { text: "", isCorrect: true },
+    { text: "", isCorrect: false },
+  ],
+});
+
 export default function AdminCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = use(params);
   const [lessons, setLessons] = useState<AdminLesson[]>([]);
   const [selected, setSelected] = useState<AdminLesson | null>(null);
   const [message, setMessage] = useState("");
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestionDraft[]>([
+    emptyQuestion(),
+  ]);
+  const [quizSaving, setQuizSaving] = useState(false);
 
   useEffect(() => {
     void getAdminLessons(courseId).then(setLessons).catch(() => setMessage("Darslarni yuklab bo‘lmadi"));
@@ -47,19 +62,76 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
     event.preventDefault();
     if (!selected) return;
     const form = new FormData(event.currentTarget);
+    setQuizSaving(true);
+    setMessage("");
     try {
-      const questions = JSON.parse(String(form.get("questions"))) as unknown;
       await createAdminQuiz(selected.id, {
         title: String(form.get("title")),
         passScore: Number(form.get("passScore")),
-        questions,
+        questions: quizQuestions.map((question, order) => ({
+          text: question.text,
+          order,
+          options: question.options,
+        })),
       });
       setLessons((current) => current.map((item) => item.id === selected.id ? { ...item, quiz: { id: "new", title: String(form.get("title")) } } : item));
       setSelected(null);
+      setQuizQuestions([emptyQuestion()]);
       setMessage("Test yaratildi");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "JSON yoki test ma’lumoti noto‘g‘ri");
+      setMessage(error instanceof Error ? error.message : "Test ma’lumoti noto‘g‘ri");
+    } finally {
+      setQuizSaving(false);
     }
+  }
+
+  function updateQuestion(index: number, text: string) {
+    setQuizQuestions((current) =>
+      current.map((question, questionIndex) =>
+        questionIndex === index ? { ...question, text } : question,
+      ),
+    );
+  }
+
+  function updateOption(questionIndex: number, optionIndex: number, text: string) {
+    setQuizQuestions((current) =>
+      current.map((question, index) =>
+        index === questionIndex
+          ? {
+              ...question,
+              options: question.options.map((option, currentOptionIndex) =>
+                currentOptionIndex === optionIndex ? { ...option, text } : option,
+              ),
+            }
+          : question,
+      ),
+    );
+  }
+
+  function markCorrect(questionIndex: number, optionIndex: number) {
+    setQuizQuestions((current) =>
+      current.map((question, index) =>
+        index === questionIndex
+          ? {
+              ...question,
+              options: question.options.map((option, currentOptionIndex) => ({
+                ...option,
+                isCorrect: currentOptionIndex === optionIndex,
+              })),
+            }
+          : question,
+      ),
+    );
+  }
+
+  function addOption(questionIndex: number) {
+    setQuizQuestions((current) =>
+      current.map((question, index) =>
+        index === questionIndex && question.options.length < 6
+          ? { ...question, options: [...question.options, { text: "", isCorrect: false }] }
+          : question,
+      ),
+    );
   }
 
   async function togglePublished(lesson: AdminLesson) {
@@ -110,7 +182,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           <article key={lesson.id} className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
             <div className="flex items-center gap-3">
               <div className="flex-1"><h3>{lesson.title}</h3><p className="text-xs text-zinc-500">{lesson.type} · {lesson.isPublished ? "Nashr" : "Qoralama"}</p></div>
-              {lesson.quiz ? <span className="text-xs text-emerald-400">Test bor</span> : <button onClick={() => setSelected(lesson)} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
+              {lesson.quiz ? <span className="text-xs text-emerald-400">Test bor</span> : <button onClick={() => { setSelected(lesson); setQuizQuestions([emptyQuestion()]); }} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
             </div>
             <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
               <button
@@ -135,8 +207,61 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           <h2 className="font-semibold">{selected.title} uchun test</h2>
           <input required name="title" placeholder="Test nomi" className="w-full rounded-xl bg-black p-3" />
           <input required name="passScore" type="number" min="1" max="100" defaultValue="70" className="w-full rounded-xl bg-black p-3" />
-          <textarea required name="questions" className="min-h-48 w-full rounded-xl bg-black p-3 font-mono text-xs" defaultValue={'[{"text":"Savol?","order":0,"options":[{"text":"To‘g‘ri","isCorrect":true},{"text":"Noto‘g‘ri","isCorrect":false}]}]'} />
-          <button className="w-full rounded-xl bg-blue-600 p-3 font-semibold">Testni yaratish</button>
+          <div className="space-y-4">
+            {quizQuestions.map((question, questionIndex) => (
+              <fieldset key={questionIndex} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-blue-400">{questionIndex + 1}-savol</span>
+                  {quizQuestions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setQuizQuestions((current) => current.filter((_, index) => index !== questionIndex))}
+                      className="ml-auto text-red-400"
+                      aria-label="Savolni o‘chirish"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  required
+                  value={question.text}
+                  onChange={(event) => updateQuestion(questionIndex, event.target.value)}
+                  placeholder="Savol matni"
+                  className="mt-3 w-full rounded-xl bg-zinc-900 p-3"
+                />
+                <div className="mt-3 space-y-2">
+                  {question.options.map((option, optionIndex) => (
+                    <label key={optionIndex} className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name={`correct-${questionIndex}`}
+                        checked={option.isCorrect}
+                        onChange={() => markCorrect(questionIndex, optionIndex)}
+                        className="accent-emerald-500"
+                      />
+                      <input
+                        required
+                        value={option.text}
+                        onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)}
+                        placeholder={`${optionIndex + 1}-javob varianti`}
+                        className="min-w-0 flex-1 rounded-xl bg-zinc-900 p-3"
+                      />
+                    </label>
+                  ))}
+                </div>
+                {question.options.length < 6 && (
+                  <button type="button" onClick={() => addOption(questionIndex)} className="mt-3 text-sm text-blue-400">
+                    + Javob varianti
+                  </button>
+                )}
+              </fieldset>
+            ))}
+          </div>
+          <button type="button" onClick={() => setQuizQuestions((current) => [...current, emptyQuestion()])} className="w-full rounded-xl border border-blue-500/30 p-3 text-blue-400">
+            + Yana savol qo‘shish
+          </button>
+          <button disabled={quizSaving} className="w-full rounded-xl bg-blue-600 p-3 font-semibold disabled:opacity-50">{quizSaving ? "Saqlanmoqda…" : "Testni yaratish"}</button>
         </form>
       )}
     </main>
