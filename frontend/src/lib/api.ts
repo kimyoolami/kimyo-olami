@@ -21,7 +21,27 @@ export interface AuthUser {
   firstName: string | null;
   username: string | null;
   isPremium: boolean;
+  premiumUntil: string | null;
   role: "STUDENT" | "ADMIN";
+}
+
+export interface AdminPayment {
+  id: string;
+  amount: number;
+  currency: string;
+  status: "PENDING" | "PAID" | "EXPIRED" | "REFUNDED";
+  paidAt: string | null;
+  createdAt: string;
+  telegramPaymentChargeId: string | null;
+  user: {
+    telegramId: string;
+    firstName: string | null;
+    username: string | null;
+  };
+}
+
+export function getAdminPayments() {
+  return authorizedRequest<AdminPayment[]>("/admin/payments");
 }
 
 export interface AdminCourse extends CourseSummary {

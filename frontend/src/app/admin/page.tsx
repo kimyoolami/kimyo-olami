@@ -1,15 +1,17 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Crown, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Crown, Pencil, Plus, ReceiptText, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import {
   createAdminCourse,
   deleteAdminCourse,
   getAdminCourses,
+  getAdminPayments,
   getProfile,
   updateAdminCourse,
   type AdminCourse,
+  type AdminPayment,
 } from "@/lib/api";
 
 export default function AdminPage() {
@@ -18,13 +20,21 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<AdminCourse | null>(null);
+  const [payments, setPayments] = useState<AdminPayment[]>([]);
 
   useEffect(() => {
     void getProfile()
       .then((user) => {
         const isAdmin = user.role === "ADMIN";
         setAllowed(isAdmin);
-        if (isAdmin) return getAdminCourses().then(setCourses);
+        if (isAdmin) {
+          return Promise.all([getAdminCourses(), getAdminPayments()]).then(
+            ([courseItems, paymentItems]) => {
+              setCourses(courseItems);
+              setPayments(paymentItems);
+            },
+          );
+        }
       })
       .catch(() => setAllowed(false));
   }, []);
@@ -160,6 +170,31 @@ export default function AdminPage() {
                 >
                   <Trash2 size={18} />
                 </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="flex items-center gap-2 text-xl font-semibold"><ReceiptText size={21} /> So‘nggi to‘lovlar</h2>
+        <div className="mt-4 space-y-3">
+          {payments.length === 0 && (
+            <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">Hozircha to‘lovlar yo‘q</p>
+          )}
+          {payments.map((payment) => (
+            <article key={payment.id} className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{payment.user.firstName ?? payment.user.username ?? payment.user.telegramId}</p>
+                  <p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat("uz-UZ", { dateStyle: "medium", timeStyle: "short" }).format(new Date(payment.paidAt ?? payment.createdAt))}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">{payment.amount} ⭐</p>
+                  <p className={payment.status === "PAID" ? "text-xs text-emerald-400" : payment.status === "PENDING" ? "text-xs text-amber-400" : "text-xs text-zinc-500"}>
+                    {payment.status === "PAID" ? "To‘langan" : payment.status === "PENDING" ? "Kutilmoqda" : payment.status === "REFUNDED" ? "Qaytarilgan" : "Muddati o‘tgan"}
+                  </p>
+                </div>
               </div>
             </article>
           ))}

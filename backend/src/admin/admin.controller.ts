@@ -20,6 +20,11 @@ import { CreateQuizDto } from './dto/quiz.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('payments')
+  listPayments() {
+    return this.adminService.listPayments();
+  }
+
   @Get('courses') listCourses() {
     return this.adminService.listCourses();
   }

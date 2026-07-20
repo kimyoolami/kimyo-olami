@@ -12,6 +12,29 @@ import { CreateQuizDto } from './dto/quiz.dto';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
+  listPayments() {
+    return this.prisma.payment.findMany({
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        telegramPaymentChargeId: true,
+        user: {
+          select: {
+            telegramId: true,
+            firstName: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
   listCourses() {
     return this.prisma.course.findMany({
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],

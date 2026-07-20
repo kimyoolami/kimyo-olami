@@ -27,9 +27,16 @@ export default function ProfilePage() {
         <h1 className="mt-4 text-2xl font-semibold">{user?.firstName ?? "Foydalanuvchi"}</h1>
         {user?.username && <p className="mt-1 text-zinc-500">@{user.username}</p>}
         {user?.isPremium && (
-          <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-3 py-1 text-sm text-amber-400">
-            <Crown size={15} /> Premium
-          </span>
+          <div className="mt-3">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-3 py-1 text-sm text-amber-400">
+              <Crown size={15} /> Premium
+            </span>
+            {user.premiumUntil && (
+              <p className="mt-2 text-xs text-zinc-500">
+                {new Intl.DateTimeFormat("uz-UZ", { dateStyle: "long" }).format(new Date(user.premiumUntil))} gacha
+              </p>
+            )}
+          </div>
         )}
       </section>
 
