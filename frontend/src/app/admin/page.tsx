@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Crown, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Crown, Pencil, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import {
@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<AdminCourse | null>(null);
 
   useEffect(() => {
     void getProfile()
@@ -63,6 +64,32 @@ export default function AdminPage() {
       setMessage(updated.isPublished ? "Kurs nashr qilindi" : "Kurs qoralamaga olindi");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Kursni yangilab bo‘lmadi");
+    }
+  }
+
+  async function saveCourse(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
+    setMessage("");
+    try {
+      const updated = await updateAdminCourse(editing.id, {
+        title: String(form.get("title")),
+        description: String(form.get("description") || ""),
+        order: Number(form.get("order") || 0),
+        isPremium: form.get("isPremium") === "on",
+        isPublished: form.get("isPublished") === "on",
+      });
+      setCourses((current) =>
+        current.map((item) => (item.id === editing.id ? { ...item, ...updated } : item)),
+      );
+      setEditing(null);
+      setMessage("Kurs yangilandi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kursni saqlab bo‘lmadi");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -114,6 +141,13 @@ export default function AdminPage() {
               </Link>
               <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
                 <button
+                  onClick={() => setEditing(course)}
+                  aria-label="Kursni tahrirlash"
+                  className="rounded-xl bg-white/5 px-3 text-zinc-300"
+                >
+                  <Pencil size={18} />
+                </button>
+                <button
                   onClick={() => void togglePublished(course)}
                   className="flex-1 rounded-xl bg-blue-600/15 px-3 py-2 text-sm text-blue-400"
                 >
@@ -131,6 +165,25 @@ export default function AdminPage() {
           ))}
         </div>
       </section>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 px-5 py-8 backdrop-blur-sm">
+          <form onSubmit={(event) => void saveCourse(event)} className="mx-auto max-w-lg space-y-3 rounded-3xl border border-blue-500/30 bg-zinc-900 p-5">
+            <div className="flex items-center gap-3">
+              <h2 className="flex-1 text-lg font-semibold">Kursni tahrirlash</h2>
+              <button type="button" onClick={() => setEditing(null)} aria-label="Yopish" className="text-zinc-400"><X size={20} /></button>
+            </div>
+            <input required name="title" defaultValue={editing.title} placeholder="Kurs nomi" className="w-full rounded-xl bg-black p-3" />
+            <textarea name="description" defaultValue={editing.description ?? ""} placeholder="Qisqa tavsif" className="min-h-28 w-full rounded-xl bg-black p-3" />
+            <label className="block text-xs text-zinc-400">Tartib raqami<input required name="order" type="number" min="0" defaultValue={editing.order} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
+            <div className="flex gap-5 text-sm">
+              <label className="flex items-center gap-2"><input type="checkbox" name="isPremium" defaultChecked={editing.isPremium} className="accent-blue-600" /> Premium</label>
+              <label className="flex items-center gap-2"><input type="checkbox" name="isPublished" defaultChecked={editing.isPublished} className="accent-blue-600" /> Nashr</label>
+            </div>
+            <button disabled={saving} className="w-full rounded-xl bg-blue-600 p-3 font-semibold disabled:opacity-50">{saving ? "Saqlanmoqda…" : "O‘zgarishlarni saqlash"}</button>
+          </form>
+        </div>
+      )}
     </main>
   );
 }
