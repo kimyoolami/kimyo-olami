@@ -12,8 +12,8 @@ import { CreateQuizDto } from './dto/quiz.dto';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  listPayments() {
-    return this.prisma.payment.findMany({
+  async listPayments() {
+    const payments = await this.prisma.payment.findMany({
       take: 100,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -33,6 +33,13 @@ export class AdminService {
         },
       },
     });
+    return payments.map((payment) => ({
+      ...payment,
+      user: {
+        ...payment.user,
+        telegramId: payment.user.telegramId.toString(),
+      },
+    }));
   }
 
   listCourses() {
