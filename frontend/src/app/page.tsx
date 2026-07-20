@@ -14,9 +14,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   authenticateTelegram,
+  createPremiumInvoice,
   getCourses,
+  getPremiumPlan,
+  getProfile,
   type AuthUser,
   type CourseSummary,
+  type PremiumPlan,
 } from "@/lib/api";
 
 export default function HomePage() {
@@ -24,6 +28,9 @@ export default function HomePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [coursesError, setCoursesError] = useState(false);
   const [authError, setAuthError] = useState(false);
+  const [premiumPlan, setPremiumPlan] = useState<PremiumPlan | null>(null);
+  const [premiumMessage, setPremiumMessage] = useState("");
+  const [paying, setPaying] = useState(false);
 
   async function loginWithTelegram() {
     const telegram = (
@@ -49,7 +56,60 @@ export default function HomePage() {
         setCoursesError(true);
       });
     queueMicrotask(() => void loginWithTelegram());
+    void getPremiumPlan().then(setPremiumPlan).catch(() => undefined);
   }, []);
+
+  async function buyPremium() {
+    if (!user) {
+      setPremiumMessage("Avval Telegram orqali kirish kerak");
+      return;
+    }
+    const telegram = (
+      window as typeof window & {
+        Telegram?: {
+          WebApp?: {
+            openInvoice?: (
+              url: string,
+              callback: (status: "paid" | "cancelled" | "failed" | "pending") => void,
+            ) => void;
+          };
+        };
+      }
+    ).Telegram?.WebApp;
+    if (!telegram?.openInvoice) {
+      setPremiumMessage("To‘lov faqat Telegram Mini App ichida ochiladi");
+      return;
+    }
+
+    setPaying(true);
+    setPremiumMessage("");
+    try {
+      const { invoiceLink } = await createPremiumInvoice();
+      telegram.openInvoice(invoiceLink, (status) => {
+        if (status === "paid") {
+          setPremiumMessage("To‘lov qabul qilindi. Premium faollashtirilmoqda…");
+          window.setTimeout(() => {
+            void getProfile().then((profile) => {
+              setUser(profile);
+              setPremiumMessage(
+                profile.isPremium
+                  ? "Premium muvaffaqiyatli faollashtirildi"
+                  : "To‘lov tekshirilmoqda. Profilni birozdan so‘ng yangilang.",
+              );
+            });
+          }, 1500);
+        } else if (status === "failed") {
+          setPremiumMessage("To‘lov amalga oshmadi");
+        } else if (status === "cancelled") {
+          setPremiumMessage("To‘lov bekor qilindi");
+        }
+        setPaying(false);
+      });
+    } catch (error) {
+      setPremiumMessage(error instanceof Error ? error.message : "To‘lovni boshlab bo‘lmadi");
+      setPaying(false);
+    }
+  }
 
   const displayedCourses = (apiCourses ?? []).map((course) => ({
     ...course,
@@ -105,14 +165,28 @@ export default function HomePage() {
                 Barcha kurs va materiallarga to‘liq kirish
               </h2>
 
-              <button className="mt-5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black">
-                Premiumga o‘tish
+              <button
+                onClick={() => void buyPremium()}
+                disabled={paying || user?.isPremium}
+                className="mt-5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black disabled:opacity-70"
+              >
+                {user?.isPremium
+                  ? "Premium faol"
+                  : paying
+                    ? "Ochilmoqda…"
+                    : `Premiumga o‘tish${premiumPlan ? ` — ${premiumPlan.stars} ⭐` : ""}`}
               </button>
             </div>
 
             <Crown size={52} className="text-white/20" />
           </div>
         </section>
+
+        {premiumMessage && (
+          <p className="mt-3 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-3 text-center text-sm text-blue-300">
+            {premiumMessage}
+          </p>
+        )}
 
         <section id="courses" className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between">

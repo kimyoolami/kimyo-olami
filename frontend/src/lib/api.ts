@@ -206,6 +206,26 @@ export function getProfile() {
   return authorizedRequest<AuthUser>("/auth/me");
 }
 
+export interface PremiumPlan {
+  title: string;
+  stars: number;
+  durationDays: number;
+  currency: "XTR";
+}
+
+export function getPremiumPlan() {
+  return request<PremiumPlan>("/payments/premium-plan");
+}
+
+export function createPremiumInvoice() {
+  return authorizedRequest<{
+    invoiceLink: string;
+    paymentId: string;
+    amount: number;
+    currency: "XTR";
+  }>("/payments/telegram-stars/invoice", { method: "POST" });
+}
+
 export interface QuizDetails {
   id: string;
   title: string;

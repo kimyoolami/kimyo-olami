@@ -11,6 +11,7 @@ import { LearningModule } from './learning/learning.module';
 import { AdminModule } from './admin/admin.module';
 import { HealthModule } from './health/health.module';
 import { validateEnvironment } from './config/env.validation';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { validateEnvironment } from './config/env.validation';
     LearningModule,
     AdminModule,
     HealthModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
