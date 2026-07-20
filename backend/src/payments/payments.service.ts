@@ -103,7 +103,7 @@ export class PaymentsService {
   getWebhookSecret() {
     const source =
       this.config.get<string>('TELEGRAM_WEBHOOK_SECRET') ??
-      this.config.get<string>('JWT_SECRET') ??
+      this.config.get<string>('TELEGRAM_BOT_TOKEN') ??
       '';
     return createHash('sha256').update(source).digest('hex');
   }
