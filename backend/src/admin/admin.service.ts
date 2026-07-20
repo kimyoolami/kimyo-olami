@@ -49,7 +49,10 @@ export class AdminService {
 
   async updateLesson(id: string, dto: UpdateLessonDto) {
     await this.requireLesson(id);
-    return this.prisma.lesson.update({ where: { id }, data: dto });
+    return this.prisma.lesson.update({
+      where: { id },
+      data: { ...dto, mediaUrl: dto.mediaUrl === '' ? null : dto.mediaUrl },
+    });
   }
 
   async deleteLesson(id: string) {

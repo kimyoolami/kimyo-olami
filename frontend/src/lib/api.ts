@@ -72,9 +72,14 @@ export interface AdminLesson {
   id: string;
   slug: string;
   title: string;
+  description: string | null;
   type: "TEXT" | "VIDEO" | "PDF";
+  content: string | null;
+  mediaUrl: string | null;
+  duration: number | null;
   isPublished: boolean;
   isPreview: boolean;
+  order: number;
   quiz: { id: string; title: string } | null;
 }
 
@@ -96,6 +101,7 @@ export function updateAdminLesson(
     description: string;
     content: string;
     mediaUrl: string;
+    duration: number;
     isPreview: boolean;
     isPublished: boolean;
     order: number;

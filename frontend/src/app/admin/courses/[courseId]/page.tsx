@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, FileQuestion, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, FileQuestion, Pencil, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, use, useEffect, useState } from "react";
 import {
@@ -27,6 +27,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
   const { courseId } = use(params);
   const [lessons, setLessons] = useState<AdminLesson[]>([]);
   const [selected, setSelected] = useState<AdminLesson | null>(null);
+  const [editing, setEditing] = useState<AdminLesson | null>(null);
   const [message, setMessage] = useState("");
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestionDraft[]>([
     emptyQuestion(),
@@ -46,7 +47,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
         slug: String(form.get("slug")),
         type: String(form.get("type")),
         content: String(form.get("content") || ""),
-        mediaUrl: String(form.get("mediaUrl") || "") || undefined,
+        mediaUrl: String(form.get("mediaUrl") || ""),
         isPreview: form.get("isPreview") === "on",
         isPublished: form.get("isPublished") === "on",
       });
@@ -82,6 +83,32 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
       setMessage(error instanceof Error ? error.message : "Test ma’lumoti noto‘g‘ri");
     } finally {
       setQuizSaving(false);
+    }
+  }
+
+  async function saveLesson(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    const form = new FormData(event.currentTarget);
+    setMessage("");
+    try {
+      const updated = await updateAdminLesson(editing.id, {
+        title: String(form.get("title")),
+        description: String(form.get("description") || ""),
+        content: String(form.get("content") || ""),
+        mediaUrl: String(form.get("mediaUrl") || "") || undefined,
+        duration: Number(form.get("duration") || 0) || undefined,
+        order: Number(form.get("order") || 0),
+        isPreview: form.get("isPreview") === "on",
+        isPublished: form.get("isPublished") === "on",
+      });
+      setLessons((current) =>
+        current.map((item) => (item.id === editing.id ? { ...item, ...updated } : item)),
+      );
+      setEditing(null);
+      setMessage("Dars yangilandi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Darsni saqlab bo‘lmadi");
     }
   }
 
@@ -182,6 +209,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           <article key={lesson.id} className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
             <div className="flex items-center gap-3">
               <div className="flex-1"><h3>{lesson.title}</h3><p className="text-xs text-zinc-500">{lesson.type} · {lesson.isPublished ? "Nashr" : "Qoralama"}</p></div>
+              <button onClick={() => setEditing(lesson)} aria-label="Darsni tahrirlash" className="text-zinc-400"><Pencil size={19} /></button>
               {lesson.quiz ? <span className="text-xs text-emerald-400">Test bor</span> : <button onClick={() => { setSelected(lesson); setQuizQuestions([emptyQuestion()]); }} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
             </div>
             <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
@@ -202,6 +230,27 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           </article>
         ))}
       </div>
+      {editing && (
+        <form onSubmit={(event) => void saveLesson(event)} className="mt-8 space-y-3 rounded-3xl border border-emerald-500/30 bg-zinc-900 p-5">
+          <div className="flex items-center gap-3">
+            <h2 className="flex-1 font-semibold">Darsni tahrirlash</h2>
+            <button type="button" onClick={() => setEditing(null)} aria-label="Yopish" className="text-zinc-400"><X size={20} /></button>
+          </div>
+          <input required name="title" defaultValue={editing.title} placeholder="Dars nomi" className="w-full rounded-xl bg-black p-3" />
+          <textarea name="description" defaultValue={editing.description ?? ""} placeholder="Qisqa tavsif" className="min-h-20 w-full rounded-xl bg-black p-3" />
+          <textarea name="content" defaultValue={editing.content ?? ""} placeholder="Dars matni" className="min-h-40 w-full rounded-xl bg-black p-3" />
+          <input name="mediaUrl" type="url" defaultValue={editing.mediaUrl ?? ""} placeholder="Video yoki PDF URL" className="w-full rounded-xl bg-black p-3" />
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-xs text-zinc-400">Davomiyligi (daqiqa)<input name="duration" type="number" min="0" defaultValue={editing.duration ?? ""} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
+            <label className="text-xs text-zinc-400">Tartib raqami<input required name="order" type="number" min="0" defaultValue={editing.order} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
+          </div>
+          <div className="flex gap-5 text-sm">
+            <label className="flex items-center gap-2"><input name="isPreview" type="checkbox" defaultChecked={editing.isPreview} className="accent-blue-600" /> Bepul ko‘rish</label>
+            <label className="flex items-center gap-2"><input name="isPublished" type="checkbox" defaultChecked={editing.isPublished} className="accent-blue-600" /> Nashr</label>
+          </div>
+          <button className="w-full rounded-xl bg-emerald-600 p-3 font-semibold">O‘zgarishlarni saqlash</button>
+        </form>
+      )}
       {selected && (
         <form onSubmit={(event) => void createQuiz(event)} className="mt-8 space-y-3 rounded-3xl border border-blue-500/30 bg-zinc-900 p-5">
           <h2 className="font-semibold">{selected.title} uchun test</h2>

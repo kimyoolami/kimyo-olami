@@ -8,6 +8,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { LessonType } from '../../../generated/prisma/enums';
 import { PartialType } from '@nestjs/mapped-types';
@@ -32,7 +33,7 @@ export class CreateLessonDto {
   @IsString()
   content?: string;
 
-  @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== undefined && value !== '')
   @IsUrl()
   mediaUrl?: string;
 
