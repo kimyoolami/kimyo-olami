@@ -28,6 +28,8 @@ export type TelegramUpdate = {
   pre_checkout_query?: PreCheckoutQuery;
   message?: {
     from?: { id: number };
+    chat?: { id: number };
+    text?: string;
     successful_payment?: SuccessfulPayment;
   };
 };
@@ -91,6 +93,9 @@ export class PaymentsService {
         update.message.from.id,
         update.message.successful_payment,
       );
+    }
+    if (update.message?.text && update.message.chat) {
+      await this.handleBotCommand(update.message.chat.id, update.message.text);
     }
     return { ok: true };
   }
@@ -171,6 +176,31 @@ export class PaymentsService {
   private getPrice() {
     const configured = Number(this.config.get('PREMIUM_PRICE_STARS') ?? 100);
     return Number.isInteger(configured) && configured > 0 ? configured : 100;
+  }
+
+  private async handleBotCommand(chatId: number, text: string) {
+    const command = text.trim().split(/\s+/, 1)[0]?.split('@', 1)[0];
+    if (command === '/start') {
+      await this.callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'Kimyo Olami mini ilovasiga xush kelibsiz!',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Kimyo Olamini ochish',
+                web_app: { url: 'https://kimyo-olami.vercel.app' },
+              },
+            ],
+          ],
+        },
+      });
+    } else if (command === '/paysupport') {
+      await this.callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'To‘lov bo‘yicha yordam olish uchun muammo tavsifi va to‘lov vaqtini shu chatga yuboring. Administrator murojaatingizni ko‘rib chiqadi.',
+      });
+    }
   }
 
   private isValidWebhookSecret(received: string | undefined) {
