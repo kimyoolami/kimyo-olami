@@ -31,6 +31,7 @@ export default function HomePage() {
   const [premiumPlan, setPremiumPlan] = useState<PremiumPlan | null>(null);
   const [premiumMessage, setPremiumMessage] = useState("");
   const [paying, setPaying] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   async function loginWithTelegram() {
     const telegram = (
@@ -111,11 +112,19 @@ export default function HomePage() {
     }
   }
 
-  const displayedCourses = (apiCourses ?? []).map((course) => ({
-    ...course,
-    subtitle: course.description ?? `${course._count.lessons} ta dars`,
-    icon: FlaskConical,
-  }));
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase("uz-UZ");
+  const displayedCourses = (apiCourses ?? [])
+    .filter((course) => {
+      if (!normalizedQuery) return true;
+      return [course.title, course.description, course.slug]
+        .filter(Boolean)
+        .some((value) => value?.toLocaleLowerCase("uz-UZ").includes(normalizedQuery));
+    })
+    .map((course) => ({
+      ...course,
+      subtitle: course.description ?? `${course._count.lessons} ta dars`,
+      icon: FlaskConical,
+    }));
 
   return (
     <main className="min-h-screen bg-black pb-28 text-white">
@@ -148,6 +157,8 @@ export default function HomePage() {
           <Search size={20} className="text-zinc-500" />
           <input
             type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Kurs, video yoki PDF qidiring"
             className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500"
           />
@@ -191,7 +202,7 @@ export default function HomePage() {
         <section id="courses" className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Mashhur yo‘nalishlar</h2>
-            <button className="text-sm text-blue-400">Barchasi</button>
+            <button onClick={() => setSearchQuery("")} className="text-sm text-blue-400">Barchasi</button>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -205,6 +216,11 @@ export default function HomePage() {
                 {coursesError
                   ? "Kurslarni yuklab bo‘lmadi. Keyinroq qayta urinib ko‘ring."
                   : "Kurslar tez orada qo‘shiladi."}
+              </p>
+            )}
+            {apiCourses !== null && apiCourses.length > 0 && displayedCourses.length === 0 && (
+              <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
+                “{searchQuery}” bo‘yicha kurs topilmadi.
               </p>
             )}
             {displayedCourses.map((course) => {
@@ -238,16 +254,16 @@ export default function HomePage() {
           <h2 className="text-xl font-semibold">Materiallar</h2>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <article className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+            <Link href="/courses/video-yechimlar" className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
               <Play className="text-blue-400" />
               <h3 className="mt-6 font-medium">Video darslar</h3>
               <p className="mt-1 text-sm text-zinc-500">Bosqichma-bosqich</p>
-            </article>
+            </Link>
 
             <article className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
               <FileText className="text-blue-400" />
               <h3 className="mt-6 font-medium">PDF materiallar</h3>
-              <p className="mt-1 text-sm text-zinc-500">Konspekt va testlar</p>
+              <p className="mt-1 text-sm text-zinc-500">Tez orada qo‘shiladi</p>
             </article>
           </div>
         </section>

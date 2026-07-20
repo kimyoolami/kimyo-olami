@@ -55,7 +55,7 @@ export class CoursesService {
     return course;
   }
 
-  async findLesson(courseSlug: string, lessonSlug: string) {
+  async findLesson(courseSlug: string, lessonSlug: string, userId?: string) {
     const lesson = await this.prisma.lesson.findFirst({
       where: {
         slug: lessonSlug,
@@ -83,7 +83,19 @@ export class CoursesService {
       throw new NotFoundException('Dars topilmadi');
     }
 
-    const locked = lesson.course.isPremium && !lesson.isPreview;
+    let hasPremiumAccess = false;
+    if (userId && lesson.course.isPremium && !lesson.isPreview) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isPremium: true, premiumUntil: true },
+      });
+      hasPremiumAccess =
+        user?.role === 'ADMIN' ||
+        (user?.isPremium === true &&
+          (user.premiumUntil === null || user.premiumUntil > new Date()));
+    }
+    const locked =
+      lesson.course.isPremium && !lesson.isPreview && !hasPremiumAccess;
     return {
       ...lesson,
       content: locked ? null : lesson.content,

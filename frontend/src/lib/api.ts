@@ -199,6 +199,13 @@ async function authorizedRequest<T>(path: string, options?: RequestInit) {
   });
 }
 
+async function optionallyAuthorizedRequest<T>(path: string) {
+  const token = localStorage.getItem("kimyo_access_token");
+  return request<T>(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+}
+
 export function getCourses() {
   return request<CourseSummary[]>("/courses");
 }
@@ -208,7 +215,7 @@ export function getCourse(slug: string) {
 }
 
 export function getLesson(courseSlug: string, lessonSlug: string) {
-  return request<LessonDetails>(
+  return optionallyAuthorizedRequest<LessonDetails>(
     `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`,
   );
 }
