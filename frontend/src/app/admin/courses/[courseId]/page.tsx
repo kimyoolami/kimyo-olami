@@ -96,7 +96,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
         title: String(form.get("title")),
         description: String(form.get("description") || ""),
         content: String(form.get("content") || ""),
-        mediaUrl: String(form.get("mediaUrl") || "") || undefined,
+        mediaUrl: String(form.get("mediaUrl") || ""),
         duration: Number(form.get("duration") || 0) || undefined,
         order: Number(form.get("order") || 0),
         isPreview: form.get("isPreview") === "on",
@@ -200,6 +200,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
         <select name="type" className="w-full rounded-xl bg-black p-3"><option value="TEXT">Matn</option><option value="VIDEO">Video</option><option value="PDF">PDF</option></select>
         <textarea name="content" placeholder="Dars matni" className="min-h-28 w-full rounded-xl bg-black p-3" />
         <input name="mediaUrl" type="url" placeholder="Video yoki PDF URL" className="w-full rounded-xl bg-black p-3" />
+        <p className="text-xs text-zinc-500">YouTube, MP4/WebM yoki to‘g‘ridan-to‘g‘ri PDF havolasi qabul qilinadi.</p>
         <div className="flex gap-5 text-sm"><label><input name="isPreview" type="checkbox" /> Preview</label><label><input name="isPublished" type="checkbox" /> Nashr</label></div>
         <button className="w-full rounded-xl bg-blue-600 p-3 font-semibold">Dars yaratish</button>
       </form>
@@ -240,6 +241,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           <textarea name="description" defaultValue={editing.description ?? ""} placeholder="Qisqa tavsif" className="min-h-20 w-full rounded-xl bg-black p-3" />
           <textarea name="content" defaultValue={editing.content ?? ""} placeholder="Dars matni" className="min-h-40 w-full rounded-xl bg-black p-3" />
           <input name="mediaUrl" type="url" defaultValue={editing.mediaUrl ?? ""} placeholder="Video yoki PDF URL" className="w-full rounded-xl bg-black p-3" />
+          <p className="text-xs text-zinc-500">YouTube, MP4/WebM yoki to‘g‘ridan-to‘g‘ri PDF havolasi. Bo‘sh qoldirsangiz eski havola o‘chiriladi.</p>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs text-zinc-400">Davomiyligi (daqiqa)<input name="duration" type="number" min="0" defaultValue={editing.duration ?? ""} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
             <label className="text-xs text-zinc-400">Tartib raqami<input required name="order" type="number" min="0" defaultValue={editing.order} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
