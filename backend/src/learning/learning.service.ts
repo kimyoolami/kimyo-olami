@@ -38,6 +38,12 @@ export class LearningService {
     status: ProgressStatus,
   ) {
     await this.assertLessonAccess(userId, lessonId);
+    if (status === ProgressStatus.IN_PROGRESS) {
+      const existing = await this.prisma.lessonProgress.findUnique({
+        where: { userId_lessonId: { userId, lessonId } },
+      });
+      if (existing?.status === ProgressStatus.COMPLETED) return existing;
+    }
     return this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },
       update: {

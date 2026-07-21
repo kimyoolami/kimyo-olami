@@ -1,4 +1,5 @@
 import { PrismaService } from '../prisma/prisma.service';
+import { ProgressStatus } from '../../generated/prisma/enums';
 import { LearningService } from './learning.service';
 
 describe('LearningService premium access', () => {
@@ -28,5 +29,37 @@ describe('LearningService premium access', () => {
     const service = new LearningService(prisma as unknown as PrismaService);
 
     await expect(service.getQuiz('admin-id', 'quiz-id')).resolves.toEqual(quiz);
+  });
+
+  it('does not regress completed lessons back to in progress', async () => {
+    const completed = {
+      id: 'progress-id',
+      userId: 'user-id',
+      lessonId: 'lesson-id',
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const prisma = {
+      lesson: {
+        findFirst: jest.fn().mockResolvedValue({
+          course: { isPremium: false },
+        }),
+      },
+      lessonProgress: {
+        findUnique: jest.fn().mockResolvedValue(completed),
+        upsert: jest.fn(),
+      },
+    };
+    const service = new LearningService(prisma as unknown as PrismaService);
+
+    const result = await service.updateProgress(
+      'user-id',
+      'lesson-id',
+      ProgressStatus.IN_PROGRESS,
+    );
+
+    expect(result).toBe(completed);
+    expect(prisma.lessonProgress.upsert).not.toHaveBeenCalled();
   });
 });

@@ -44,7 +44,14 @@ export default function LessonPage({
   const [progressMessage, setProgressMessage] = useState("");
 
   useEffect(() => {
-    void getLesson(slug, lessonSlug).then(setLesson).catch(() => setError(true));
+    void getLesson(slug, lessonSlug)
+      .then((loadedLesson) => {
+        setLesson(loadedLesson);
+        if (!loadedLesson.locked && localStorage.getItem("kimyo_access_token")) {
+          void updateProgress(loadedLesson.id, "IN_PROGRESS").catch(() => undefined);
+        }
+      })
+      .catch(() => setError(true));
   }, [slug, lessonSlug]);
 
   async function completeLesson() {
