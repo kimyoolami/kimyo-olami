@@ -179,6 +179,24 @@ export interface LessonDetails {
   quiz: { id: string; title: string; passScore: number } | null;
 }
 
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+function getTelegramInitData() {
+  if (typeof window === "undefined") return "";
+  return (
+    window as typeof window & {
+      Telegram?: { WebApp?: { initData?: string } };
+    }
+  ).Telegram?.WebApp?.initData ?? "";
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -191,18 +209,41 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const message = Array.isArray(payload?.message)
       ? payload.message.join(", ")
       : payload?.message;
-    throw new Error(message ?? `API xatosi: ${response.status}`);
+    throw new ApiError(message ?? `API xatosi: ${response.status}`, response.status);
   }
   return response.json() as Promise<T>;
 }
 
 async function authorizedRequest<T>(path: string, options?: RequestInit) {
-  const token = localStorage.getItem("kimyo_access_token");
+  let token = localStorage.getItem("kimyo_access_token");
+  const initData = getTelegramInitData();
+  if (!token && initData) {
+    await authenticateTelegram(initData);
+    token = localStorage.getItem("kimyo_access_token");
+  }
   if (!token) throw new Error("Avval Telegram orqali kiring");
-  return request<T>(path, {
-    ...options,
-    headers: { ...options?.headers, Authorization: `Bearer ${token}` },
-  });
+
+  const send = (accessToken: string) =>
+    request<T>(path, {
+      ...options,
+      headers: {
+        ...options?.headers,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+  try {
+    return await send(token);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401 || !initData) {
+      throw error;
+    }
+    localStorage.removeItem("kimyo_access_token");
+    await authenticateTelegram(initData);
+    const refreshedToken = localStorage.getItem("kimyo_access_token");
+    if (!refreshedToken) throw error;
+    return send(refreshedToken);
+  }
 }
 
 async function optionallyAuthorizedRequest<T>(path: string) {

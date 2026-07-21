@@ -70,6 +70,7 @@ export class LearningService {
           select: {
             id: true,
             title: true,
+            isPreview: true,
             isPublished: true,
             course: { select: { isPremium: true, isPublished: true } },
           },
@@ -88,7 +89,10 @@ export class LearningService {
     if (!quiz || !quiz.lesson.isPublished || !quiz.lesson.course.isPublished) {
       throw new NotFoundException('Test topilmadi');
     }
-    await this.assertPremiumAccess(userId, quiz.lesson.course.isPremium);
+    await this.assertPremiumAccess(
+      userId,
+      quiz.lesson.course.isPremium && !quiz.lesson.isPreview,
+    );
     return quiz;
   }
 
@@ -103,7 +107,10 @@ export class LearningService {
     if (!quiz || !quiz.lesson.isPublished || !quiz.lesson.course.isPublished) {
       throw new NotFoundException('Test topilmadi');
     }
-    await this.assertPremiumAccess(userId, quiz.lesson.course.isPremium);
+    await this.assertPremiumAccess(
+      userId,
+      quiz.lesson.course.isPremium && !quiz.lesson.isPreview,
+    );
 
     const answers = new Map(
       dto.answers.map((answer) => [answer.questionId, answer.optionId]),
@@ -154,10 +161,16 @@ export class LearningService {
   private async assertLessonAccess(userId: string, lessonId: string) {
     const lesson = await this.prisma.lesson.findFirst({
       where: { id: lessonId, isPublished: true, course: { isPublished: true } },
-      select: { course: { select: { isPremium: true } } },
+      select: {
+        isPreview: true,
+        course: { select: { isPremium: true } },
+      },
     });
     if (!lesson) throw new NotFoundException('Dars topilmadi');
-    await this.assertPremiumAccess(userId, lesson.course.isPremium);
+    await this.assertPremiumAccess(
+      userId,
+      lesson.course.isPremium && !lesson.isPreview,
+    );
   }
 
   private async assertPremiumAccess(userId: string, premiumRequired: boolean) {
