@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 import { CreateLessonDto, UpdateLessonDto } from './dto/lesson.dto';
 import { CreateQuizDto } from './dto/quiz.dto';
+import { LessonType } from '../../generated/prisma/enums';
 
 @Injectable()
 export class AdminService {
@@ -74,11 +75,23 @@ export class AdminService {
 
   async createLesson(courseId: string, dto: CreateLessonDto) {
     await this.requireCourse(courseId);
+    this.assertLessonCanBePublished(
+      dto.type,
+      dto.content,
+      dto.mediaUrl,
+      dto.isPublished,
+    );
     return this.prisma.lesson.create({ data: { ...dto, courseId } });
   }
 
   async updateLesson(id: string, dto: UpdateLessonDto) {
-    await this.requireLesson(id);
+    const lesson = await this.requireLesson(id);
+    this.assertLessonCanBePublished(
+      dto.type ?? lesson.type,
+      dto.content === undefined ? lesson.content : dto.content,
+      dto.mediaUrl === undefined ? lesson.mediaUrl : dto.mediaUrl,
+      dto.isPublished ?? lesson.isPublished,
+    );
     return this.prisma.lesson.update({
       where: { id },
       data: { ...dto, mediaUrl: dto.mediaUrl === '' ? null : dto.mediaUrl },
@@ -148,8 +161,37 @@ export class AdminService {
   private async requireLesson(id: string) {
     const lesson = await this.prisma.lesson.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        type: true,
+        content: true,
+        mediaUrl: true,
+        isPublished: true,
+      },
     });
     if (!lesson) throw new NotFoundException('Dars topilmadi');
+    return lesson;
+  }
+
+  private assertLessonCanBePublished(
+    type: LessonType,
+    content: string | null | undefined,
+    mediaUrl: string | null | undefined,
+    isPublished: boolean | undefined,
+  ) {
+    if (!isPublished) return;
+    if (type === LessonType.TEXT && !content?.trim()) {
+      throw new BadRequestException(
+        'Matnli darsni nashr qilish uchun dars matnini kiriting',
+      );
+    }
+    if (
+      (type === LessonType.VIDEO || type === LessonType.PDF) &&
+      !mediaUrl?.trim()
+    ) {
+      throw new BadRequestException(
+        'Video yoki PDF darsni nashr qilish uchun media havolasini kiriting',
+      );
+    }
   }
 }
