@@ -158,11 +158,13 @@ export class LearningService {
     if (!premiumRequired) return;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { isPremium: true, premiumUntil: true },
+      select: { role: true, isPremium: true, premiumUntil: true },
     });
     const active =
-      user?.isPremium === true &&
-      (user.premiumUntil === null || user.premiumUntil.getTime() > Date.now());
+      user?.role === 'ADMIN' ||
+      (user?.isPremium === true &&
+        (user.premiumUntil === null ||
+          user.premiumUntil.getTime() > Date.now()));
     if (!active) throw new ForbiddenException('Premium obuna talab qilinadi');
   }
 }
