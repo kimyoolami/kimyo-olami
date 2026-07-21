@@ -77,6 +77,14 @@ export class PaymentsService {
     }
   }
 
+  async cancelInvoice(userId: string, paymentId: string) {
+    const result = await this.prisma.payment.updateMany({
+      where: { id: paymentId, userId, status: 'PENDING' },
+      data: { status: 'EXPIRED' },
+    });
+    return { cancelled: result.count > 0 };
+  }
+
   async handleTelegramUpdate(
     secret: string | undefined,
     update: TelegramUpdate,

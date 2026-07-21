@@ -259,6 +259,13 @@ export function createPremiumInvoice() {
   }>("/payments/telegram-stars/invoice", { method: "POST" });
 }
 
+export function cancelPremiumInvoice(paymentId: string) {
+  return authorizedRequest<{ cancelled: boolean }>(
+    `/payments/telegram-stars/${paymentId}/cancel`,
+    { method: "POST" },
+  );
+}
+
 export interface QuizDetails {
   id: string;
   title: string;

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Headers,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -26,6 +27,15 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   createInvoice(@Req() request: AuthenticatedRequest) {
     return this.payments.createInvoice(request.user.id);
+  }
+
+  @Post('telegram-stars/:paymentId/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancelInvoice(
+    @Req() request: AuthenticatedRequest,
+    @Param('paymentId') paymentId: string,
+  ) {
+    return this.payments.cancelInvoice(request.user.id, paymentId);
   }
 
   @Post('telegram/webhook')

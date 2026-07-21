@@ -20,6 +20,7 @@ describe('PaymentsService', () => {
         operation: 'payment-update',
         input,
       })),
+      updateMany: jest.fn(),
     },
     user: {
       update: jest.fn((input: unknown) => ({
@@ -85,5 +86,17 @@ describe('PaymentsService', () => {
     };
     expect(paymentUpdate.data.status).toBe('PAID');
     expect(userUpdate.data.isPremium).toBe(true);
+  });
+
+  it('expires only the current user pending invoice', async () => {
+    prisma.payment.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      service.cancelInvoice('user-id', 'payment-id'),
+    ).resolves.toEqual({ cancelled: true });
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { id: 'payment-id', userId: 'user-id', status: 'PENDING' },
+      data: { status: 'EXPIRED' },
+    });
   });
 });

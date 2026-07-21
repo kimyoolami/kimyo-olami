@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   authenticateTelegram,
+  cancelPremiumInvoice,
   createPremiumInvoice,
   getCourses,
   getPremiumPlan,
@@ -85,7 +86,7 @@ export default function HomePage() {
     setPaying(true);
     setPremiumMessage("");
     try {
-      const { invoiceLink } = await createPremiumInvoice();
+      const { invoiceLink, paymentId } = await createPremiumInvoice();
       telegram.openInvoice(invoiceLink, (status) => {
         if (status === "paid") {
           setPremiumMessage("To‘lov qabul qilindi. Premium faollashtirilmoqda…");
@@ -101,8 +102,10 @@ export default function HomePage() {
           }, 1500);
         } else if (status === "failed") {
           setPremiumMessage("To‘lov amalga oshmadi");
+          void cancelPremiumInvoice(paymentId).catch(() => undefined);
         } else if (status === "cancelled") {
           setPremiumMessage("To‘lov bekor qilindi");
+          void cancelPremiumInvoice(paymentId).catch(() => undefined);
         }
         setPaying(false);
       });
