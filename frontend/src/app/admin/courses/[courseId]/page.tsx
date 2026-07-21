@@ -7,6 +7,7 @@ import {
   createAdminLesson,
   createAdminQuiz,
   deleteAdminLesson,
+  deleteAdminQuiz,
   getAdminLessons,
   updateAdminLesson,
   type AdminLesson,
@@ -189,6 +190,23 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
     }
   }
 
+  async function removeQuiz(lesson: AdminLesson) {
+    if (!lesson.quiz) return;
+    if (!window.confirm(`“${lesson.quiz.title}” testi o‘chirilsinmi?`)) return;
+    setMessage("");
+    try {
+      await deleteAdminQuiz(lesson.quiz.id);
+      setLessons((current) =>
+        current.map((item) =>
+          item.id === lesson.id ? { ...item, quiz: null } : item,
+        ),
+      );
+      setMessage("Test o‘chirildi. Endi yangisini yaratishingiz mumkin.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Testni o‘chirib bo‘lmadi");
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-black px-5 py-8 text-white">
       <Link href="/admin" className="inline-flex items-center gap-2 text-zinc-400"><ArrowLeft size={18} /> Admin</Link>
@@ -211,7 +229,12 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
             <div className="flex items-center gap-3">
               <div className="flex-1"><h3>{lesson.title}</h3><p className="text-xs text-zinc-500">{lesson.type} · {lesson.isPublished ? "Nashr" : "Qoralama"}</p></div>
               <button onClick={() => setEditing(lesson)} aria-label="Darsni tahrirlash" className="text-zinc-400"><Pencil size={19} /></button>
-              {lesson.quiz ? <span className="text-xs text-emerald-400">Test bor</span> : <button onClick={() => { setSelected(lesson); setQuizQuestions([emptyQuestion()]); }} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
+              {lesson.quiz ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-emerald-400">Test bor</span>
+                  <button onClick={() => void removeQuiz(lesson)} aria-label="Testni o‘chirish" className="text-red-400"><Trash2 size={17} /></button>
+                </div>
+              ) : <button onClick={() => { setSelected(lesson); setQuizQuestions([emptyQuestion()]); }} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
             </div>
             <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
               <button

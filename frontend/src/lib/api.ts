@@ -146,6 +146,12 @@ export function createAdminQuiz(lessonId: string, data: Record<string, unknown>)
   });
 }
 
+export function deleteAdminQuiz(id: string) {
+  return authorizedRequest<{ deleted: true }>(`/admin/quizzes/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export interface CourseDetails extends Omit<CourseSummary, "_count"> {
   lessons: Array<{
     id: string;
