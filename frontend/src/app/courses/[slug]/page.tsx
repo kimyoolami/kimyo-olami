@@ -1,17 +1,21 @@
 "use client";
 
-import { ArrowLeft, Clock, FileText, LockKeyhole, Play } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleDot, Clock, FileText, LockKeyhole, Play } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { getCourse, type CourseDetails } from "@/lib/api";
+import { getCourse, getProgress, type CourseDetails, type ProgressItem } from "@/lib/api";
 
 export default function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [course, setCourse] = useState<CourseDetails | null>(null);
   const [error, setError] = useState(false);
+  const [progress, setProgress] = useState<ProgressItem[]>([]);
 
   useEffect(() => {
     void getCourse(slug).then(setCourse).catch(() => setError(true));
+    if (localStorage.getItem("kimyo_access_token")) {
+      void getProgress().then(setProgress).catch(() => undefined);
+    }
   }, [slug]);
 
   if (error) {
@@ -27,6 +31,19 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
     return <main className="min-h-screen bg-black p-8 text-center text-zinc-400">Yuklanmoqda…</main>;
   }
 
+  const courseProgress = progress.filter(
+    (item) => item.lesson.course.slug === course.slug,
+  );
+  const completedLessons = courseProgress.filter(
+    (item) => item.status === "COMPLETED",
+  ).length;
+  const progressPercent = course.lessons.length
+    ? Math.round((completedLessons / course.lessons.length) * 100)
+    : 0;
+  const progressByLesson = new Map(
+    courseProgress.map((item) => [item.lesson.id, item.status]),
+  );
+
   return (
     <main className="mx-auto min-h-screen max-w-md bg-black px-5 pb-10 pt-6 text-white">
       <Link href="/" className="inline-flex items-center gap-2 text-sm text-zinc-400">
@@ -38,12 +55,24 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
         </div>
         <h1 className="mt-3 text-3xl font-semibold">{course.title}</h1>
         {course.description && <p className="mt-3 text-blue-100">{course.description}</p>}
+        {courseProgress.length > 0 && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between text-xs text-blue-100">
+              <span>{completedLessons}/{course.lessons.length} dars yakunlandi</span>
+              <span>{progressPercent}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/25">
+              <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
+        )}
       </section>
       <section className="mt-8">
         <h2 className="text-xl font-semibold">Darslar</h2>
         <div className="mt-4 space-y-3">
           {course.lessons.map((lesson, index) => {
             const Icon = lesson.type === "VIDEO" ? Play : FileText;
+            const lessonStatus = progressByLesson.get(lesson.id);
             return (
               <Link
                 key={lesson.id}
@@ -62,7 +91,13 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
                     </p>
                   )}
                 </div>
-                {!lesson.isPreview && course.isPremium && <LockKeyhole size={17} className="text-zinc-600" />}
+                {lessonStatus === "COMPLETED" ? (
+                  <CheckCircle2 size={19} className="text-emerald-400" />
+                ) : lessonStatus === "IN_PROGRESS" ? (
+                  <CircleDot size={19} className="text-blue-400" />
+                ) : !lesson.isPreview && course.isPremium ? (
+                  <LockKeyhole size={17} className="text-zinc-600" />
+                ) : null}
               </Link>
             );
           })}
