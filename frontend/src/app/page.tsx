@@ -164,7 +164,7 @@ export default function HomePage() {
           />
         </div>
 
-        <section className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-950 p-5">
+        <section id="premium" className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-950 p-5">
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-blue-100">

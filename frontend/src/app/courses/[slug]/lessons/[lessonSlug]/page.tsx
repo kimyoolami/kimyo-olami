@@ -86,9 +86,9 @@ export default function LessonPage({
           <LockKeyhole className="mx-auto text-blue-400" size={34} />
           <h2 className="mt-4 text-xl font-semibold">Premium dars</h2>
           <p className="mt-2 text-sm text-zinc-400">Bu darsni ko‘rish uchun premium obuna kerak.</p>
-          <button className="mt-5 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold">
+          <Link href="/#premium" className="mt-5 inline-block rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold">
             Premiumga o‘tish
-          </button>
+          </Link>
         </section>
       ) : (
         <section className="mt-8">
