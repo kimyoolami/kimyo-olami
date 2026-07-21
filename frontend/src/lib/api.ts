@@ -216,6 +216,24 @@ export function getCourses() {
   return request<CourseSummary[]>("/courses");
 }
 
+export interface PdfMaterial {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  duration: number | null;
+  isPreview: boolean;
+  course: {
+    slug: string;
+    title: string;
+    isPremium: boolean;
+  };
+}
+
+export function getPdfMaterials() {
+  return request<PdfMaterial[]>("/courses/materials/pdf");
+}
+
 export function getCourse(slug: string) {
   return request<CourseDetails>(`/courses/${encodeURIComponent(slug)}`);
 }

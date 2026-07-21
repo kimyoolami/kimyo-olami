@@ -21,6 +21,36 @@ export class CoursesService {
     });
   }
 
+  findPdfMaterials() {
+    return this.prisma.lesson.findMany({
+      where: {
+        type: 'PDF',
+        isPublished: true,
+        course: { isPublished: true },
+      },
+      orderBy: [
+        { course: { order: 'asc' } },
+        { order: 'asc' },
+        { createdAt: 'asc' },
+      ],
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        duration: true,
+        isPreview: true,
+        course: {
+          select: {
+            slug: true,
+            title: true,
+            isPremium: true,
+          },
+        },
+      },
+    });
+  }
+
   async findBySlug(slug: string) {
     const course = await this.prisma.course.findFirst({
       where: { slug, isPublished: true },

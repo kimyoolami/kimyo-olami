@@ -56,4 +56,22 @@ describe('CoursesService premium access', () => {
     expect(result.locked).toBe(false);
     expect(result.content).toBe('Protected content');
   });
+
+  it('lists only published PDF materials from published courses', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = { lesson: { findMany } };
+    const service = new CoursesService(prisma as unknown as PrismaService);
+
+    await service.findPdfMaterials();
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          type: 'PDF',
+          isPublished: true,
+          course: { isPublished: true },
+        },
+      }),
+    );
+  });
 });

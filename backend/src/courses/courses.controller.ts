@@ -14,6 +14,11 @@ export class CoursesController {
     return this.coursesService.findAll();
   }
 
+  @Get('materials/pdf')
+  findPdfMaterials() {
+    return this.coursesService.findPdfMaterials();
+  }
+
   @Get(':courseSlug/lessons/:lessonSlug')
   @UseGuards(OptionalJwtAuthGuard)
   findLesson(

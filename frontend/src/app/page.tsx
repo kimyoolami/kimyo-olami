@@ -263,11 +263,11 @@ export default function HomePage() {
               <p className="mt-1 text-sm text-zinc-500">Bosqichma-bosqich</p>
             </Link>
 
-            <article className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+            <Link href="/materials" className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
               <FileText className="text-blue-400" />
               <h3 className="mt-6 font-medium">PDF materiallar</h3>
-              <p className="mt-1 text-sm text-zinc-500">Tez orada qo‘shiladi</p>
-            </article>
+              <p className="mt-1 text-sm text-zinc-500">Konspekt va qo‘llanmalar</p>
+            </Link>
           </div>
         </section>
       </section>
