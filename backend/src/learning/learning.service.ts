@@ -32,6 +32,32 @@ export class LearningService {
     });
   }
 
+  getAttempts(userId: string) {
+    return this.prisma.quizAttempt.findMany({
+      where: { userId },
+      take: 20,
+      orderBy: { submittedAt: 'desc' },
+      select: {
+        id: true,
+        score: true,
+        passed: true,
+        submittedAt: true,
+        quiz: {
+          select: {
+            id: true,
+            title: true,
+            lesson: {
+              select: {
+                title: true,
+                course: { select: { title: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async updateProgress(
     userId: string,
     lessonId: string,

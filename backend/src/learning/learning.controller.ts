@@ -24,6 +24,11 @@ export class LearningController {
     return this.learningService.getProgress(request.user.id);
   }
 
+  @Get('attempts')
+  getAttempts(@Req() request: AuthenticatedRequest) {
+    return this.learningService.getAttempts(request.user.id);
+  }
+
   @Patch('lessons/:lessonId/progress')
   updateProgress(
     @Req() request: AuthenticatedRequest,

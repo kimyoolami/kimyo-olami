@@ -374,6 +374,25 @@ export function getProgress() {
   return authorizedRequest<ProgressItem[]>("/learning/progress");
 }
 
+export interface QuizAttemptItem {
+  id: string;
+  score: number;
+  passed: boolean;
+  submittedAt: string;
+  quiz: {
+    id: string;
+    title: string;
+    lesson: {
+      title: string;
+      course: { title: string };
+    };
+  };
+}
+
+export function getQuizAttempts() {
+  return authorizedRequest<QuizAttemptItem[]>("/learning/attempts");
+}
+
 export function updateProgress(
   lessonId: string,
   status: ProgressItem["status"],

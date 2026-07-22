@@ -3,6 +3,22 @@ import { ProgressStatus } from '../../generated/prisma/enums';
 import { LearningService } from './learning.service';
 
 describe('LearningService premium access', () => {
+  it('returns the latest quiz attempts for the current user', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = { quizAttempt: { findMany } };
+    const service = new LearningService(prisma as unknown as PrismaService);
+
+    await service.getAttempts('user-id');
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-id' },
+        take: 20,
+        orderBy: { submittedAt: 'desc' },
+      }),
+    );
+  });
+
   it('allows administrators to open premium quizzes', async () => {
     const quiz = {
       id: 'quiz-id',

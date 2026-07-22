@@ -1,18 +1,30 @@
 "use client";
 
-import { Award, BookOpen, CheckCircle2, Crown, Settings, User } from "lucide-react";
+import { Award, BookOpen, CheckCircle2, Crown, Settings, User, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getProfile, getProgress, type AuthUser, type ProgressItem } from "@/lib/api";
+import {
+  getProfile,
+  getProgress,
+  getQuizAttempts,
+  type AuthUser,
+  type ProgressItem,
+  type QuizAttemptItem,
+} from "@/lib/api";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
+  const [attempts, setAttempts] = useState<QuizAttemptItem[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    void Promise.all([getProfile(), getProgress()])
-      .then(([profile, items]) => { setUser(profile); setProgress(items); })
+    void Promise.all([getProfile(), getProgress(), getQuizAttempts()])
+      .then(([profile, items, quizAttempts]) => {
+        setUser(profile);
+        setProgress(items);
+        setAttempts(quizAttempts);
+      })
       .catch(() => setMessage("Profil uchun Telegram Mini App orqali kiring."));
   }, []);
 
@@ -85,6 +97,37 @@ export default function ProfilePage() {
           ))}
         </div>
       </section>
+
+      {attempts.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold">Test natijalari</h2>
+          <div className="mt-4 space-y-3">
+            {attempts.slice(0, 5).map((attempt) => (
+              <article
+                key={attempt.id}
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-900 p-4"
+              >
+                {attempt.passed ? (
+                  <CheckCircle2 className="shrink-0 text-emerald-400" size={21} />
+                ) : (
+                  <XCircle className="shrink-0 text-red-400" size={21} />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{attempt.quiz.title}</p>
+                  <p className="truncate text-xs text-zinc-500">
+                    {attempt.quiz.lesson.course.title}
+                  </p>
+                </div>
+                <span
+                  className={`text-lg font-semibold ${attempt.passed ? "text-emerald-400" : "text-red-400"}`}
+                >
+                  {attempt.score}%
+                </span>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       <nav className="fixed bottom-0 left-1/2 flex w-full max-w-md -translate-x-1/2 justify-around border-t border-white/10 bg-black/95 p-4 backdrop-blur">
         <Link href="/" className="text-zinc-500">Bosh sahifa</Link>
         <span className="text-blue-400">Profil</span>
