@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/jwt-auth.guard';
 import { UpdateProgressDto } from './dto/update-progress.dto';
@@ -51,6 +52,7 @@ export class LearningController {
   }
 
   @Post('quizzes/:quizId/submit')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   submitQuiz(
     @Req() request: AuthenticatedRequest,
     @Param('quizId') quizId: string,

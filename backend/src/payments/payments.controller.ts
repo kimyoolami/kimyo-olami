@@ -8,6 +8,7 @@ import {
   UseGuards,
   Body,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import {
   JwtAuthGuard,
   type AuthenticatedRequest,
@@ -24,6 +25,7 @@ export class PaymentsController {
   }
 
   @Post('telegram-stars/invoice')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   createInvoice(@Req() request: AuthenticatedRequest) {
     return this.payments.createInvoice(request.user.id);
@@ -39,6 +41,7 @@ export class PaymentsController {
   }
 
   @Post('telegram/webhook')
+  @SkipThrottle()
   handleTelegramWebhook(
     @Headers('x-telegram-bot-api-secret-token') secret: string | undefined,
     @Body() update: TelegramUpdate,
