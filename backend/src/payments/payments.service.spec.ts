@@ -16,11 +16,10 @@ describe('PaymentsService', () => {
   const prisma = {
     payment: {
       findUnique: jest.fn(),
-      update: jest.fn((input: unknown) => ({
-        operation: 'payment-update',
-        input,
-      })),
-      updateMany: jest.fn(),
+      updateMany: jest.fn((input: unknown) => {
+        void input;
+        return Promise.resolve({ count: 0 });
+      }),
     },
     user: {
       update: jest.fn((input: unknown) => ({
@@ -34,6 +33,10 @@ describe('PaymentsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      async (callback: (transaction: typeof prisma) => Promise<void>) =>
+        callback(prisma),
+    );
     service = new PaymentsService(
       config as unknown as ConfigService,
       prisma as unknown as PrismaService,
@@ -63,6 +66,7 @@ describe('PaymentsService', () => {
         premiumUntil: null,
       },
     });
+    prisma.payment.updateMany.mockResolvedValue({ count: 1 });
 
     await service.handleTelegramUpdate(service.getWebhookSecret(), {
       message: {
@@ -78,7 +82,7 @@ describe('PaymentsService', () => {
     });
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    const paymentUpdate = prisma.payment.update.mock.calls[0]?.[0] as {
+    const paymentUpdate = prisma.payment.updateMany.mock.calls[0]?.[0] as {
       data: { status: string };
     };
     const userUpdate = prisma.user.update.mock.calls[0]?.[0] as {
@@ -86,6 +90,34 @@ describe('PaymentsService', () => {
     };
     expect(paymentUpdate.data.status).toBe('PAID');
     expect(userUpdate.data.isPremium).toBe(true);
+  });
+
+  it('does not extend premium when another webhook already claimed the payment', async () => {
+    prisma.payment.findUnique.mockResolvedValue({
+      id: 'payment-id',
+      userId: 'user-id',
+      payload: 'premium_payload',
+      amount: 100,
+      currency: 'XTR',
+      status: 'PENDING',
+      user: { telegramId: 123456789n, premiumUntil: null },
+    });
+    prisma.payment.updateMany.mockResolvedValue({ count: 0 });
+
+    await service.handleTelegramUpdate(service.getWebhookSecret(), {
+      message: {
+        from: { id: 123456789 },
+        successful_payment: {
+          currency: 'XTR',
+          total_amount: 100,
+          invoice_payload: 'premium_payload',
+          telegram_payment_charge_id: 'telegram-charge',
+          provider_payment_charge_id: 'provider-charge',
+        },
+      },
+    });
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   it('expires only the current user pending invoice', async () => {

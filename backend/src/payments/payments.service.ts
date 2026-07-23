@@ -155,7 +155,7 @@ export class PaymentsService {
     ) {
       return;
     }
-    if (payment.status === 'PAID') return;
+    if (payment.status !== 'PENDING') return;
 
     const now = new Date();
     const base =
@@ -164,21 +164,22 @@ export class PaymentsService {
         : now;
     const premiumUntil = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    await this.prisma.$transaction([
-      this.prisma.payment.update({
-        where: { id: payment.id },
+    await this.prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.payment.updateMany({
+        where: { id: payment.id, status: 'PENDING' },
         data: {
           status: 'PAID',
           paidAt: now,
           telegramPaymentChargeId: successful.telegram_payment_charge_id,
           providerPaymentChargeId: successful.provider_payment_charge_id,
         },
-      }),
-      this.prisma.user.update({
+      });
+      if (claimed.count === 0) return;
+      await transaction.user.update({
         where: { id: payment.userId },
         data: { isPremium: true, premiumUntil },
-      }),
-    ]);
+      });
+    });
   }
 
   private getPrice() {
