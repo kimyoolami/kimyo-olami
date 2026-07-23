@@ -100,6 +100,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
       const updated = await updateAdminLesson(editing.id, {
         title: String(form.get("title")),
         description: String(form.get("description") || ""),
+        type: String(form.get("type")) as AdminLesson["type"],
         content: String(form.get("content") || ""),
         mediaUrl: String(form.get("mediaUrl") || ""),
         duration: Number(form.get("duration") || 0) || undefined,
@@ -301,6 +302,14 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           </div>
           <input required name="title" defaultValue={editing.title} placeholder="Dars nomi" className="w-full rounded-xl bg-black p-3" />
           <textarea name="description" defaultValue={editing.description ?? ""} placeholder="Qisqa tavsif" className="min-h-20 w-full rounded-xl bg-black p-3" />
+          <label className="block text-xs text-zinc-400">
+            Dars turi
+            <select name="type" defaultValue={editing.type} className="mt-1 w-full rounded-xl bg-black p-3 text-white">
+              <option value="TEXT">Matn</option>
+              <option value="VIDEO">Video</option>
+              <option value="PDF">PDF</option>
+            </select>
+          </label>
           <textarea name="content" defaultValue={editing.content ?? ""} placeholder="Dars matni" className="min-h-40 w-full rounded-xl bg-black p-3" />
           <input name="mediaUrl" type="url" defaultValue={editing.mediaUrl ?? ""} placeholder="Video yoki PDF URL" className="w-full rounded-xl bg-black p-3" />
           <p className="text-xs text-zinc-500">YouTube, MP4/WebM yoki to‘g‘ridan-to‘g‘ri PDF havolasi. Bo‘sh qoldirsangiz eski havola o‘chiriladi.</p>

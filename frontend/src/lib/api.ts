@@ -119,6 +119,7 @@ export function updateAdminLesson(
   data: Partial<{
     title: string;
     description: string;
+    type: "TEXT" | "VIDEO" | "PDF";
     content: string;
     mediaUrl: string;
     duration: number;
