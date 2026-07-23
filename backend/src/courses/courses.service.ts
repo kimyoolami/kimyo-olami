@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -131,6 +135,47 @@ export class CoursesService {
       content: locked ? null : lesson.content,
       mediaUrl: locked ? null : lesson.mediaUrl,
       locked,
+    };
+  }
+
+  async getLessonMedia(
+    courseSlug: string,
+    lessonSlug: string,
+    userId?: string,
+  ) {
+    const lesson = await this.prisma.lesson.findFirst({
+      where: {
+        slug: lessonSlug,
+        isPublished: true,
+        course: { slug: courseSlug, isPublished: true },
+      },
+      select: {
+        isPreview: true,
+        mediaData: true,
+        mediaMimeType: true,
+        mediaFileName: true,
+        course: { select: { isPremium: true } },
+      },
+    });
+    if (!lesson?.mediaData || !lesson.mediaMimeType) {
+      throw new NotFoundException('Dars fayli topilmadi');
+    }
+    if (lesson.course.isPremium && !lesson.isPreview) {
+      if (!userId) throw new ForbiddenException('Premium obuna talab qilinadi');
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isPremium: true, premiumUntil: true },
+      });
+      const active =
+        user?.role === 'ADMIN' ||
+        (user?.isPremium === true &&
+          (user.premiumUntil === null || user.premiumUntil > new Date()));
+      if (!active) throw new ForbiddenException('Premium obuna talab qilinadi');
+    }
+    return {
+      data: Buffer.from(lesson.mediaData),
+      mimeType: lesson.mediaMimeType,
+      fileName: lesson.mediaFileName ?? `${lessonSlug}.pdf`,
     };
   }
 }

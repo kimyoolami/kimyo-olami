@@ -3,7 +3,7 @@
 import { ArrowLeft, FileText, LockKeyhole, Play } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { getLesson, updateProgress, type LessonDetails } from "@/lib/api";
+import { getLesson, getLessonMediaBlob, updateProgress, type LessonDetails } from "@/lib/api";
 
 function getYouTubeEmbedUrl(mediaUrl: string) {
   try {
@@ -42,6 +42,7 @@ export default function LessonPage({
   const [completed, setCompleted] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [progressMessage, setProgressMessage] = useState("");
+  const [pdfObjectUrl, setPdfObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     void getLesson(slug, lessonSlug)
@@ -53,6 +54,27 @@ export default function LessonPage({
       })
       .catch(() => setError(true));
   }, [slug, lessonSlug]);
+
+  useEffect(() => {
+    if (lesson?.type !== "PDF" || !lesson.mediaUrl?.startsWith("/api/")) return;
+    let active = true;
+    let objectUrl = "";
+    void getLessonMediaBlob(lesson.mediaUrl)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPdfObjectUrl(objectUrl);
+      })
+      .catch((mediaError: unknown) =>
+        setProgressMessage(
+          mediaError instanceof Error ? mediaError.message : "PDF’ni ochib bo‘lmadi",
+        ),
+      );
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [lesson]);
 
   async function completeLesson() {
     if (!lesson) return;
@@ -130,10 +152,16 @@ export default function LessonPage({
           })()}
           {lesson.mediaUrl && lesson.type === "PDF" && (
             <div className="space-y-3">
-              <iframe src={lesson.mediaUrl} title={lesson.title} className="h-[65vh] w-full rounded-2xl border border-white/10 bg-white" />
-              <a href={lesson.mediaUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 p-4 font-semibold">
-                <FileText size={20} /> PDF’ni alohida ochish
-              </a>
+              {lesson.mediaUrl.startsWith("/api/") && !pdfObjectUrl ? (
+                <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-400">PDF yuklanmoqda…</p>
+              ) : (
+                <>
+                  <iframe src={pdfObjectUrl ?? lesson.mediaUrl} title={lesson.title} className="h-[65vh] w-full rounded-2xl border border-white/10 bg-white" />
+                  <a href={pdfObjectUrl ?? lesson.mediaUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 p-4 font-semibold">
+                    <FileText size={20} /> PDF’ni alohida ochish
+                  </a>
+                </>
+              )}
             </div>
           )}
           {lesson.content && <article className="mt-6 whitespace-pre-wrap leading-7 text-zinc-300">{lesson.content}</article>}

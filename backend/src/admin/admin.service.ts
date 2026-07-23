@@ -98,6 +98,45 @@ export class AdminService {
     });
   }
 
+  async uploadLessonPdf(
+    id: string,
+    file:
+      | {
+          buffer: Buffer;
+          mimetype: string;
+          originalname: string;
+          size: number;
+        }
+      | undefined,
+  ) {
+    const lesson = await this.requireLesson(id);
+    if (!file) throw new BadRequestException('PDF fayl tanlanmagan');
+    if (
+      lesson.type !== LessonType.PDF ||
+      file.mimetype !== 'application/pdf' ||
+      !file.buffer.subarray(0, 5).equals(Buffer.from('%PDF-'))
+    ) {
+      throw new BadRequestException(
+        'Faqat haqiqiy PDF dars fayli qabul qilinadi',
+      );
+    }
+    const mediaUrl = `/api/courses/${lesson.course.slug}/lessons/${lesson.slug}/media`;
+    return this.prisma.lesson.update({
+      where: { id },
+      data: {
+        mediaData: Uint8Array.from(file.buffer),
+        mediaMimeType: file.mimetype,
+        mediaFileName: file.originalname,
+        mediaUrl,
+      },
+      select: {
+        id: true,
+        mediaUrl: true,
+        mediaFileName: true,
+      },
+    });
+  }
+
   async deleteLesson(id: string) {
     await this.requireLesson(id);
     await this.prisma.lesson.delete({ where: { id } });
@@ -167,6 +206,8 @@ export class AdminService {
         content: true,
         mediaUrl: true,
         isPublished: true,
+        slug: true,
+        course: { select: { slug: true } },
       },
     });
     if (!lesson) throw new NotFoundException('Dars topilmadi');

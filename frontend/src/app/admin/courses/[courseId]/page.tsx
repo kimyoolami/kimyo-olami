@@ -10,6 +10,7 @@ import {
   deleteAdminQuiz,
   getAdminLessons,
   updateAdminLesson,
+  uploadAdminLessonPdf,
   type AdminLesson,
 } from "@/lib/api";
 
@@ -210,6 +211,22 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
     }
   }
 
+  async function uploadPdf(lesson: AdminLesson, file: File | undefined) {
+    if (!file) return;
+    setMessage("PDF yuklanmoqda…");
+    try {
+      const result = await uploadAdminLessonPdf(lesson.id, file);
+      setLessons((current) =>
+        current.map((item) =>
+          item.id === lesson.id ? { ...item, mediaUrl: result.mediaUrl } : item,
+        ),
+      );
+      setMessage("PDF muvaffaqiyatli yuklandi");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "PDF’ni yuklab bo‘lmadi");
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-black px-5 py-8 text-white">
       <Link href="/admin" className="inline-flex items-center gap-2 text-zinc-400"><ArrowLeft size={18} /> Admin</Link>
@@ -245,6 +262,20 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
               ) : <button onClick={() => { setSelected(lesson); setQuizQuestions([emptyQuestion()]); }} aria-label="Test qo‘shish" className="text-blue-400"><FileQuestion /></button>}
             </div>
             <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
+              {lesson.type === "PDF" && (
+                <label className="cursor-pointer rounded-xl bg-emerald-500/15 px-3 py-2 text-sm text-emerald-400">
+                  PDF yuklash
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onChange={(event) => {
+                      void uploadPdf(lesson, event.target.files?.[0]);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              )}
               <button
                 onClick={() => void togglePublished(lesson)}
                 className="flex-1 rounded-xl bg-blue-600/15 px-3 py-2 text-sm text-blue-400"

@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Req,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import {
   OptionalJwtAuthGuard,
   type OptionalAuthenticatedRequest,
@@ -31,6 +38,25 @@ export class CoursesController {
       lessonSlug,
       request.user?.id,
     );
+  }
+
+  @Get(':courseSlug/lessons/:lessonSlug/media')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getLessonMedia(
+    @Req() request: OptionalAuthenticatedRequest,
+    @Param('courseSlug') courseSlug: string,
+    @Param('lessonSlug') lessonSlug: string,
+  ) {
+    const media = await this.coursesService.getLessonMedia(
+      courseSlug,
+      lessonSlug,
+      request.user?.id,
+    );
+    return new StreamableFile(media.data, {
+      type: media.mimeType,
+      disposition: `inline; filename="${media.fileName.replace(/["\\\r\n]/g, '_')}"`,
+      length: media.data.length,
+    });
   }
 
   @Get(':slug')

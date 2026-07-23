@@ -74,4 +74,45 @@ describe('CoursesService premium access', () => {
       }),
     );
   });
+
+  it('serves stored media for a free preview lesson', async () => {
+    const prisma = {
+      lesson: {
+        findFirst: jest.fn().mockResolvedValue({
+          isPreview: true,
+          mediaData: Uint8Array.from(Buffer.from('%PDF-test')),
+          mediaMimeType: 'application/pdf',
+          mediaFileName: 'test.pdf',
+          course: { isPremium: true },
+        }),
+      },
+      user: { findUnique: jest.fn() },
+    };
+    const service = new CoursesService(prisma as unknown as PrismaService);
+
+    const result = await service.getLessonMedia('course', 'lesson');
+
+    expect(result.mimeType).toBe('application/pdf');
+    expect(result.data.toString()).toBe('%PDF-test');
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('blocks stored premium media for anonymous users', async () => {
+    const prisma = {
+      lesson: {
+        findFirst: jest.fn().mockResolvedValue({
+          isPreview: false,
+          mediaData: Uint8Array.from(Buffer.from('%PDF-test')),
+          mediaMimeType: 'application/pdf',
+          mediaFileName: 'test.pdf',
+          course: { isPremium: true },
+        }),
+      },
+    };
+    const service = new CoursesService(prisma as unknown as PrismaService);
+
+    await expect(service.getLessonMedia('course', 'lesson')).rejects.toThrow(
+      'Premium obuna',
+    );
+  });
 });

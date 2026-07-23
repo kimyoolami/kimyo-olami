@@ -77,6 +77,8 @@ describe('AdminService', () => {
           content: null,
           mediaUrl: null,
           isPublished: false,
+          slug: 'material',
+          course: { slug: 'course' },
         }),
         update,
       },
@@ -89,5 +91,74 @@ describe('AdminService', () => {
     });
 
     expect(update).toHaveBeenCalled();
+  });
+
+  it('stores a valid PDF and assigns its protected media URL', async () => {
+    const update = jest.fn((input: unknown) => {
+      void input;
+      return Promise.resolve({
+        id: 'lesson-id',
+        mediaUrl: '/api/courses/organik/lessons/konspekt/media',
+      });
+    });
+    const prisma = {
+      lesson: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'lesson-id',
+          type: LessonType.PDF,
+          content: null,
+          mediaUrl: null,
+          isPublished: false,
+          slug: 'konspekt',
+          course: { slug: 'organik' },
+        }),
+        update,
+      },
+    };
+    const service = new AdminService(prisma as unknown as PrismaService);
+    const buffer = Buffer.from('%PDF-1.7 test');
+
+    await service.uploadLessonPdf('lesson-id', {
+      buffer,
+      mimetype: 'application/pdf',
+      originalname: 'konspekt.pdf',
+      size: buffer.length,
+    });
+
+    const updateInput = update.mock.calls[0]?.[0] as {
+      data: { mediaData: Uint8Array; mediaUrl: string };
+    };
+    expect(Buffer.from(updateInput.data.mediaData)).toEqual(buffer);
+    expect(updateInput.data.mediaUrl).toBe(
+      '/api/courses/organik/lessons/konspekt/media',
+    );
+  });
+
+  it('rejects a file that only claims to be a PDF', async () => {
+    const prisma = {
+      lesson: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'lesson-id',
+          type: LessonType.PDF,
+          content: null,
+          mediaUrl: null,
+          isPublished: false,
+          slug: 'konspekt',
+          course: { slug: 'organik' },
+        }),
+        update: jest.fn(),
+      },
+    };
+    const service = new AdminService(prisma as unknown as PrismaService);
+
+    await expect(
+      service.uploadLessonPdf('lesson-id', {
+        buffer: Buffer.from('not a pdf'),
+        mimetype: 'application/pdf',
+        originalname: 'fake.pdf',
+        size: 9,
+      }),
+    ).rejects.toThrow('haqiqiy PDF');
+    expect(prisma.lesson.update).not.toHaveBeenCalled();
   });
 });

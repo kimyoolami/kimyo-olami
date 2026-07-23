@@ -133,6 +133,28 @@ export function updateAdminLesson(
   });
 }
 
+export async function uploadAdminLessonPdf(id: string, file: File) {
+  const token = localStorage.getItem("kimyo_access_token");
+  if (!token) throw new Error("Avval Telegram orqali kiring");
+  const form = new FormData();
+  form.set("file", file);
+  const response = await fetch(`${API_URL}/admin/lessons/${id}/pdf`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+    const message = Array.isArray(payload?.message)
+      ? payload.message.join(", ")
+      : payload?.message;
+    throw new Error(message ?? `PDF yuklash xatosi: ${response.status}`);
+  }
+  return response.json() as Promise<{ id: string; mediaUrl: string }>;
+}
+
 export function deleteAdminLesson(id: string) {
   return authorizedRequest<{ deleted: true }>(`/admin/lessons/${id}`, {
     method: "DELETE",
@@ -283,6 +305,30 @@ export function getLesson(courseSlug: string, lessonSlug: string) {
   return optionallyAuthorizedRequest<LessonDetails>(
     `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`,
   );
+}
+
+export async function getLessonMediaBlob(mediaUrl: string) {
+  let token = localStorage.getItem("kimyo_access_token");
+  const initData = getTelegramInitData();
+  if (!token && initData) {
+    await authenticateTelegram(initData);
+    token = localStorage.getItem("kimyo_access_token");
+  }
+  const send = (accessToken: string | null) =>
+    fetch(mediaUrl, {
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
+    });
+  let response = await send(token);
+  if (response.status === 401 && initData) {
+    localStorage.removeItem("kimyo_access_token");
+    await authenticateTelegram(initData);
+    token = localStorage.getItem("kimyo_access_token");
+    response = await send(token);
+  }
+  if (!response.ok) throw new Error(`PDF faylini ochib bo‘lmadi: ${response.status}`);
+  return response.blob();
 }
 
 export async function authenticateTelegram(initData: string) {

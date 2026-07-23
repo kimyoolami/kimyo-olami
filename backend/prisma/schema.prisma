@@ -93,6 +93,9 @@ model Lesson {
   type        LessonType       @default(TEXT)
   content     String?
   mediaUrl    String?          @map("media_url")
+  mediaData   Bytes?           @map("media_data")
+  mediaMimeType String?        @map("media_mime_type")
+  mediaFileName String?        @map("media_file_name")
   duration    Int?
   isPreview   Boolean          @default(false) @map("is_preview")
   isPublished Boolean          @default(false) @map("is_published")
