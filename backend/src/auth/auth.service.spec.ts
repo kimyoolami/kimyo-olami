@@ -67,4 +67,40 @@ describe('AuthService', () => {
       service.authenticateTelegram({ initData }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it('reports an expired premium subscription as inactive', async () => {
+    const expiredUser = {
+      ...user,
+      isPremium: true,
+      premiumUntil: new Date(Date.now() - 60_000),
+    };
+    const localPrisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(expiredUser) },
+    };
+    const localService = new AuthService(
+      config as unknown as ConfigService,
+      jwt as unknown as JwtService,
+      localPrisma as unknown as PrismaService,
+    );
+
+    await expect(localService.getProfile(user.id)).resolves.toMatchObject({
+      isPremium: false,
+    });
+  });
+
+  it('reports administrators as premium without requiring payment', async () => {
+    const adminUser = { ...user, role: 'ADMIN' as const };
+    const localPrisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(adminUser) },
+    };
+    const localService = new AuthService(
+      config as unknown as ConfigService,
+      jwt as unknown as JwtService,
+      localPrisma as unknown as PrismaService,
+    );
+
+    await expect(localService.getProfile(user.id)).resolves.toMatchObject({
+      isPremium: true,
+    });
+  });
 });
