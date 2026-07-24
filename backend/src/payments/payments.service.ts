@@ -3,6 +3,8 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -37,11 +39,27 @@ export type TelegramUpdate = {
 };
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit, OnModuleDestroy {
+  private cleanupTimer?: NodeJS.Timeout;
+  private cleanupRunning = false;
+
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
+
+  onModuleInit() {
+    void this.cleanupExpiredChannelAccess();
+    this.cleanupTimer = setInterval(
+      () => void this.cleanupExpiredChannelAccess(),
+      60 * 60 * 1000,
+    );
+    this.cleanupTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
+  }
 
   getPremiumPlan() {
     return {
@@ -260,6 +278,43 @@ export class PaymentsService {
     return (
       this.config.get<string>('PREMIUM_TELEGRAM_CHAT_ID') ?? '-1004499182599'
     );
+  }
+
+  private async cleanupExpiredChannelAccess() {
+    if (this.cleanupRunning) return;
+    this.cleanupRunning = true;
+    try {
+      const expiredUsers = await this.prisma.user.findMany({
+        where: {
+          isPremium: true,
+          premiumUntil: { lte: new Date() },
+          role: 'STUDENT',
+        },
+        select: { id: true, telegramId: true },
+        take: 100,
+      });
+      for (const user of expiredUsers) {
+        try {
+          await this.callTelegram('banChatMember', {
+            chat_id: this.getCourseChannelId(),
+            user_id: user.telegramId.toString(),
+          });
+          await this.callTelegram('unbanChatMember', {
+            chat_id: this.getCourseChannelId(),
+            user_id: user.telegramId.toString(),
+            only_if_banned: true,
+          });
+          await this.prisma.user.updateMany({
+            where: { id: user.id, premiumUntil: { lte: new Date() } },
+            data: { isPremium: false },
+          });
+        } catch {
+          // A temporary Telegram failure is retried on the next sweep.
+        }
+      }
+    } finally {
+      this.cleanupRunning = false;
+    }
   }
 
   private async handleBotCommand(chatId: number, text: string) {
