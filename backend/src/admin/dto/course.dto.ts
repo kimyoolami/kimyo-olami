@@ -32,6 +32,26 @@ export class CreateCourseDto {
   isPremium?: boolean;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  priceStars?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priceUzs?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  accessDays?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^-100\d+$/)
+  telegramChannelId?: string;
+
+  @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
 

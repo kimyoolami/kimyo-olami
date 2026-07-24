@@ -13,6 +13,9 @@ export interface CourseSummary {
   description: string | null;
   imageUrl: string | null;
   isPremium: boolean;
+  priceStars: number | null;
+  priceUzs: number | null;
+  accessDays: number;
   _count: { lessons: number };
 }
 
@@ -33,6 +36,7 @@ export interface AdminPayment {
   paidAt: string | null;
   createdAt: string;
   telegramPaymentChargeId: string | null;
+  course: { title: string; slug: string } | null;
   user: {
     telegramId: string;
     firstName: string | null;
@@ -47,6 +51,7 @@ export function getAdminPayments() {
 export interface AdminCourse extends CourseSummary {
   isPublished: boolean;
   order: number;
+  telegramChannelId: string | null;
 }
 
 export function getAdminCourses() {
@@ -59,6 +64,10 @@ export function createAdminCourse(data: {
   description?: string;
   isPremium: boolean;
   isPublished: boolean;
+  priceStars?: number;
+  priceUzs?: number;
+  accessDays?: number;
+  telegramChannelId?: string;
 }) {
   return authorizedRequest<AdminCourse>("/admin/courses", {
     method: "POST",
@@ -74,6 +83,10 @@ export function updateAdminCourse(
     isPremium: boolean;
     isPublished: boolean;
     order: number;
+    priceStars: number;
+    priceUzs: number;
+    accessDays: number;
+    telegramChannelId: string;
   }>,
 ) {
   return authorizedRequest<AdminCourse>(`/admin/courses/${id}`, {
@@ -357,39 +370,46 @@ export function getProfile() {
   return authorizedRequest<AuthUser>("/auth/me");
 }
 
-export interface PremiumPlan {
+export interface CoursePlan {
+  slug: string;
   title: string;
-  stars: number;
-  priceUzs: number;
-  durationDays: number;
+  priceStars: number | null;
+  priceUzs: number | null;
+  accessDays: number;
   currency: "XTR";
 }
 
-export function getPremiumPlan() {
-  return request<PremiumPlan>("/payments/premium-plan");
+export function getCoursePlan(courseSlug: string) {
+  return request<CoursePlan>(`/payments/courses/${courseSlug}/plan`);
 }
 
-export function createPremiumInvoice() {
+export function getCourseAccess(courseSlug: string) {
+  return authorizedRequest<{ hasAccess: boolean; expiresAt: string | null }>(
+    `/payments/courses/${courseSlug}/access`,
+  );
+}
+
+export function createCourseInvoice(courseSlug: string) {
   return authorizedRequest<{
     invoiceLink: string;
     paymentId: string;
     amount: number;
     currency: "XTR";
-  }>("/payments/telegram-stars/invoice", { method: "POST" });
+  }>(`/payments/courses/${courseSlug}/telegram-stars/invoice`, { method: "POST" });
 }
 
-export function cancelPremiumInvoice(paymentId: string) {
+export function cancelCourseInvoice(paymentId: string) {
   return authorizedRequest<{ cancelled: boolean }>(
     `/payments/telegram-stars/${paymentId}/cancel`,
     { method: "POST" },
   );
 }
 
-export function createPremiumChannelInvite() {
+export function createCourseChannelInvite(courseSlug: string) {
   return authorizedRequest<{
     inviteLink: string;
     accessUntil: string | null;
-  }>("/payments/premium-channel/invite", { method: "POST" });
+  }>(`/payments/courses/${courseSlug}/channel-invite`, { method: "POST" });
 }
 
 export interface QuizDetails {

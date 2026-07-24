@@ -49,8 +49,12 @@ export default function AdminPage() {
         title: String(form.get("title")),
         slug: String(form.get("slug")),
         description: String(form.get("description") || ""),
-        isPremium: form.get("isPremium") === "on",
+        isPremium: Boolean(form.get("priceStars")),
         isPublished: form.get("isPublished") === "on",
+        priceStars: Number(form.get("priceStars") || 0) || undefined,
+        priceUzs: Number(form.get("priceUzs") || 0) || undefined,
+        accessDays: Number(form.get("accessDays") || 30),
+        telegramChannelId: String(form.get("telegramChannelId") || "") || undefined,
       });
       setCourses((current) => [...current, course]);
       event.currentTarget.reset();
@@ -88,8 +92,12 @@ export default function AdminPage() {
         title: String(form.get("title")),
         description: String(form.get("description") || ""),
         order: Number(form.get("order") || 0),
-        isPremium: form.get("isPremium") === "on",
+        isPremium: Boolean(form.get("priceStars")),
         isPublished: form.get("isPublished") === "on",
+        priceStars: Number(form.get("priceStars") || 0),
+        priceUzs: Number(form.get("priceUzs") || 0),
+        accessDays: Number(form.get("accessDays") || 30),
+        telegramChannelId: String(form.get("telegramChannelId") || ""),
       });
       setCourses((current) =>
         current.map((item) => (item.id === editing.id ? { ...item, ...updated } : item)),
@@ -128,8 +136,13 @@ export default function AdminPage() {
         <input required name="title" placeholder="Kurs nomi" className="w-full rounded-xl bg-black p-3 outline-none ring-blue-500 focus:ring-2" />
         <input required name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="slug: organik-kimyo" className="w-full rounded-xl bg-black p-3 outline-none ring-blue-500 focus:ring-2" />
         <textarea name="description" placeholder="Qisqa tavsif" className="min-h-24 w-full rounded-xl bg-black p-3 outline-none ring-blue-500 focus:ring-2" />
+        <div className="grid grid-cols-2 gap-3">
+          <input name="priceUzs" type="number" min="1" placeholder="Narxi: 49000 so‘m" className="rounded-xl bg-black p-3" />
+          <input name="priceStars" type="number" min="1" placeholder="Telegram: 100 ⭐" className="rounded-xl bg-black p-3" />
+          <input name="accessDays" type="number" min="1" defaultValue="30" className="rounded-xl bg-black p-3" />
+          <input name="telegramChannelId" pattern="-100[0-9]+" placeholder="Kanal ID: -100..." className="rounded-xl bg-black p-3" />
+        </div>
         <div className="flex flex-wrap gap-5 text-sm text-zinc-300">
-          <label className="flex items-center gap-2"><input type="checkbox" name="isPremium" className="accent-blue-600" /> Premium</label>
           <label className="flex items-center gap-2"><input type="checkbox" name="isPublished" className="accent-blue-600" /> Nashr qilish</label>
         </div>
         <button disabled={saving} className="w-full rounded-xl bg-blue-600 p-3 font-semibold disabled:opacity-50">{saving ? "Saqlanmoqda…" : "Kurs yaratish"}</button>
@@ -147,7 +160,7 @@ export default function AdminPage() {
                   <h3 className="truncate font-medium">{course.title}</h3>
                   <p className="text-xs text-zinc-500">{course._count.lessons} dars · {course.isPublished ? "Nashr qilingan" : "Qoralama"}</p>
                 </div>
-                {course.isPremium && <Crown size={18} className="text-amber-400" />}
+                {course.priceStars && <Crown size={18} className="text-amber-400" />}
               </Link>
               <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
                 <button
@@ -187,6 +200,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{payment.user.firstName ?? payment.user.username ?? payment.user.telegramId}</p>
+                  {payment.course && <p className="truncate text-xs text-blue-400">{payment.course.title}</p>}
                   <p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat("uz-UZ", { dateStyle: "medium", timeStyle: "short" }).format(new Date(payment.paidAt ?? payment.createdAt))}</p>
                 </div>
                 <div className="text-right">
@@ -210,9 +224,14 @@ export default function AdminPage() {
             </div>
             <input required name="title" defaultValue={editing.title} placeholder="Kurs nomi" className="w-full rounded-xl bg-black p-3" />
             <textarea name="description" defaultValue={editing.description ?? ""} placeholder="Qisqa tavsif" className="min-h-28 w-full rounded-xl bg-black p-3" />
+            <div className="grid grid-cols-2 gap-3">
+              <input name="priceUzs" type="number" min="1" defaultValue={editing.priceUzs ?? ""} placeholder="Narxi, so‘m" className="rounded-xl bg-black p-3" />
+              <input name="priceStars" type="number" min="1" defaultValue={editing.priceStars ?? ""} placeholder="Telegram Stars" className="rounded-xl bg-black p-3" />
+              <input name="accessDays" type="number" min="1" defaultValue={editing.accessDays ?? 30} className="rounded-xl bg-black p-3" />
+              <input name="telegramChannelId" pattern="-100[0-9]+" defaultValue={editing.telegramChannelId ?? ""} placeholder="Kanal ID" className="rounded-xl bg-black p-3" />
+            </div>
             <label className="block text-xs text-zinc-400">Tartib raqami<input required name="order" type="number" min="0" defaultValue={editing.order} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
             <div className="flex gap-5 text-sm">
-              <label className="flex items-center gap-2"><input type="checkbox" name="isPremium" defaultChecked={editing.isPremium} className="accent-blue-600" /> Premium</label>
               <label className="flex items-center gap-2"><input type="checkbox" name="isPublished" defaultChecked={editing.isPublished} className="accent-blue-600" /> Nashr</label>
             </div>
             <button disabled={saving} className="w-full rounded-xl bg-blue-600 p-3 font-semibold disabled:opacity-50">{saving ? "Saqlanmoqda…" : "O‘zgarishlarni saqlash"}</button>

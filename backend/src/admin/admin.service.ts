@@ -25,6 +25,7 @@ export class AdminService {
         paidAt: true,
         createdAt: true,
         telegramPaymentChargeId: true,
+        course: { select: { title: true, slug: true } },
         user: {
           select: {
             telegramId: true,

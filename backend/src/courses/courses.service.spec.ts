@@ -47,8 +47,11 @@ describe('CoursesService premium access', () => {
       user: {
         findUnique: jest.fn().mockResolvedValue({
           role: 'STUDENT',
-          isPremium: true,
-          premiumUntil: new Date(Date.now() + 60_000),
+        }),
+      },
+      courseAccess: {
+        findUnique: jest.fn().mockResolvedValue({
+          expiresAt: new Date(Date.now() + 60_000),
         }),
       },
     };
@@ -96,7 +99,7 @@ describe('CoursesService premium access', () => {
           mediaData: Uint8Array.from(Buffer.from('%PDF-test')),
           mediaMimeType: 'application/pdf',
           mediaFileName: 'test.pdf',
-          course: { isPremium: true },
+          course: { id: 'course-id', isPremium: true },
         }),
       },
       user: { findUnique: jest.fn() },
@@ -121,7 +124,7 @@ describe('CoursesService premium access', () => {
           mediaData: Uint8Array.from(Buffer.from('%PDF-test')),
           mediaMimeType: 'application/pdf',
           mediaFileName: 'test.pdf',
-          course: { isPremium: true },
+          course: { id: 'course-id', isPremium: true },
         }),
       },
     };
@@ -131,7 +134,7 @@ describe('CoursesService premium access', () => {
     );
 
     await expect(service.getLessonMedia('course', 'lesson')).rejects.toThrow(
-      'Premium obuna',
+      'kursni sotib',
     );
   });
 
@@ -142,15 +145,18 @@ describe('CoursesService premium access', () => {
           isPreview: false,
           telegramChatId: '-1001234567890',
           telegramMessageId: 42,
-          course: { isPremium: true },
+          course: { id: 'course-id', isPremium: true },
         }),
       },
       user: {
         findUnique: jest.fn().mockResolvedValue({
           telegramId: 123456789n,
           role: 'STUDENT',
-          isPremium: true,
-          premiumUntil: new Date(Date.now() + 60_000),
+        }),
+      },
+      courseAccess: {
+        findUnique: jest.fn().mockResolvedValue({
+          expiresAt: new Date(Date.now() + 60_000),
         }),
       },
     };

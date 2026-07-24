@@ -25,6 +25,9 @@ export class CoursesService {
         description: true,
         imageUrl: true,
         isPremium: true,
+        priceStars: true,
+        priceUzs: true,
+        accessDays: true,
         _count: { select: { lessons: { where: { isPublished: true } } } },
       },
     });
@@ -70,6 +73,9 @@ export class CoursesService {
         description: true,
         imageUrl: true,
         isPremium: true,
+        priceStars: true,
+        priceUzs: true,
+        accessDays: true,
         lessons: {
           where: { isPublished: true },
           orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
@@ -126,11 +132,7 @@ export class CoursesService {
 
     let hasPremiumAccess = false;
     if (userId && lesson.course.isPremium && !lesson.isPreview) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true, isPremium: true, premiumUntil: true },
-      });
-      hasPremiumAccess = this.hasPremiumAccess(user);
+      hasPremiumAccess = await this.hasCourseAccess(userId, lesson.course.id);
     }
     const locked =
       lesson.course.isPremium && !lesson.isPreview && !hasPremiumAccess;
@@ -161,7 +163,7 @@ export class CoursesService {
         isPreview: true,
         telegramChatId: true,
         telegramMessageId: true,
-        course: { select: { isPremium: true } },
+        course: { select: { id: true, isPremium: true } },
       },
     });
     if (!lesson?.telegramChatId || !lesson.telegramMessageId) {
@@ -180,9 +182,9 @@ export class CoursesService {
     if (
       lesson.course.isPremium &&
       !lesson.isPreview &&
-      !this.hasPremiumAccess(user)
+      !(await this.hasCourseAccess(userId, lesson.course.id))
     ) {
-      throw new ForbiddenException('Premium obuna talab qilinadi');
+      throw new ForbiddenException('Bu kursni sotib olish talab qilinadi');
     }
     await this.callTelegram('copyMessage', {
       chat_id: user.telegramId.toString(),
@@ -212,20 +214,18 @@ export class CoursesService {
         mediaData: true,
         mediaMimeType: true,
         mediaFileName: true,
-        course: { select: { isPremium: true } },
+        course: { select: { id: true, isPremium: true } },
       },
     });
     if (!lesson?.mediaData || !lesson.mediaMimeType) {
       throw new NotFoundException('Dars fayli topilmadi');
     }
     if (lesson.course.isPremium && !lesson.isPreview) {
-      if (!userId) throw new ForbiddenException('Premium obuna talab qilinadi');
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true, isPremium: true, premiumUntil: true },
-      });
-      const active = this.hasPremiumAccess(user);
-      if (!active) throw new ForbiddenException('Premium obuna talab qilinadi');
+      if (!userId)
+        throw new ForbiddenException('Bu kursni sotib olish talab qilinadi');
+      const active = await this.hasCourseAccess(userId, lesson.course.id);
+      if (!active)
+        throw new ForbiddenException('Bu kursni sotib olish talab qilinadi');
     }
     return {
       data: Buffer.from(lesson.mediaData),
@@ -234,21 +234,17 @@ export class CoursesService {
     };
   }
 
-  private hasPremiumAccess(
-    user:
-      | {
-          role: string;
-          isPremium: boolean;
-          premiumUntil: Date | null;
-        }
-      | null
-      | undefined,
-  ) {
-    return (
-      user?.role === 'ADMIN' ||
-      (user?.isPremium === true &&
-        (user.premiumUntil === null || user.premiumUntil > new Date()))
-    );
+  private async hasCourseAccess(userId: string, courseId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (user?.role === 'ADMIN') return true;
+    const access = await this.prisma.courseAccess.findUnique({
+      where: { userId_courseId: { userId, courseId } },
+      select: { expiresAt: true },
+    });
+    return Boolean(access && access.expiresAt > new Date());
   }
 
   private async callTelegram(method: string, body: object) {

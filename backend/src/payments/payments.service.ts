@@ -61,36 +61,74 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (this.cleanupTimer) clearInterval(this.cleanupTimer);
   }
 
-  getPremiumPlan() {
+  async getCoursePlan(courseSlug: string) {
+    const course = await this.prisma.course.findFirst({
+      where: { slug: courseSlug, isPublished: true },
+      select: {
+        slug: true,
+        title: true,
+        priceStars: true,
+        priceUzs: true,
+        accessDays: true,
+      },
+    });
+    if (!course) throw new NotFoundException('Kurs topilmadi');
+    return { ...course, currency: 'XTR' as const };
+  }
+
+  async getCourseAccess(userId: string, courseSlug: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        courseAccess: {
+          where: { course: { slug: courseSlug }, expiresAt: { gt: new Date() } },
+          select: { expiresAt: true },
+          take: 1,
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
     return {
-      title: 'Video yechimlar',
-      stars: this.getPrice(),
-      priceUzs: 49000,
-      durationDays: 30,
-      currency: 'XTR',
+      hasAccess: user.role === 'ADMIN' || user.courseAccess.length > 0,
+      expiresAt: user.courseAccess[0]?.expiresAt ?? null,
     };
   }
 
-  async createInvoice(userId: string) {
+  async createInvoice(userId: string, courseSlug: string) {
     await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { telegramId: true },
     });
-    const payload = `premium_${randomUUID()}`;
-    const amount = this.getPrice();
+    const course = await this.prisma.course.findFirst({
+      where: {
+        slug: courseSlug,
+        isPublished: true,
+        priceStars: { not: null },
+      },
+      select: {
+        id: true,
+        title: true,
+        priceStars: true,
+        priceUzs: true,
+        accessDays: true,
+      },
+    });
+    if (!course?.priceStars) throw new NotFoundException('Kurs sotuvda emas');
+    const payload = `course_${course.id}_${randomUUID()}`;
+    const amount = course.priceStars;
     const payment = await this.prisma.payment.create({
-      data: { userId, payload, amount },
+      data: { userId, courseId: course.id, payload, amount },
       select: { id: true },
     });
 
     try {
       const invoiceLink = await this.callTelegram<string>('createInvoiceLink', {
-        title: 'Video yechimlar',
-        description:
-          'Video yechimlar yopiq kanaliga 30 kunlik kirish (49 000 so‘m)',
+        title: course.title,
+        description: `${course.title} kursiga ${course.accessDays} kunlik kirish${course.priceUzs ? ` (${course.priceUzs.toLocaleString('uz-UZ')} so‘m)` : ''}`,
         payload,
         currency: 'XTR',
-        prices: [{ label: '30 kunlik kirish', amount }],
+        prices: [{ label: `${course.accessDays} kunlik kirish`, amount }],
       });
       return { invoiceLink, paymentId: payment.id, amount, currency: 'XTR' };
     } catch (error) {
@@ -107,40 +145,49 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     return { cancelled: result.count > 0 };
   }
 
-  async createChannelInvite(userId: string) {
+  async createChannelInvite(userId: string, courseSlug: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         telegramId: true,
         role: true,
-        isPremium: true,
-        premiumUntil: true,
+        courseAccess: {
+          where: { course: { slug: courseSlug }, expiresAt: { gt: new Date() } },
+          select: {
+            expiresAt: true,
+            course: { select: { telegramChannelId: true, title: true } },
+          },
+          take: 1,
+        },
       },
     });
     if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
-    const now = new Date();
-    const active =
-      user.role === 'ADMIN' ||
-      (user.isPremium &&
-        user.premiumUntil !== null &&
-        user.premiumUntil.getTime() > now.getTime());
-    if (!active) {
+    const access = user.courseAccess[0];
+    if (user.role !== 'ADMIN' && !access) {
       throw new ForbiddenException(
-        'Video yechimlar kursini avval sotib oling',
+        'Bu kursni avval sotib oling',
       );
     }
-
-    const chatId = this.getCourseChannelId();
+    const course = access?.course ?? (await this.prisma.course.findUnique({
+      where: { slug: courseSlug },
+      select: { telegramChannelId: true, title: true },
+    }));
+    if (!course?.telegramChannelId) {
+      throw new NotFoundException('Kurs Telegram kanali sozlanmagan');
+    }
+    const now = new Date();
+    const accessUntil =
+      access?.expiresAt ?? new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const linkExpiresAt = new Date(
       Math.min(
-        user.premiumUntil?.getTime() ?? now.getTime() + 24 * 60 * 60 * 1000,
+        accessUntil.getTime(),
         now.getTime() + 24 * 60 * 60 * 1000,
       ),
     );
     const invite = await this.callTelegram<{ invite_link: string }>(
       'createChatInviteLink',
       {
-        chat_id: chatId,
+        chat_id: course.telegramChannelId,
         name: `student-${user.telegramId.toString().slice(-12)}`,
         expire_date: Math.floor(linkExpiresAt.getTime() / 1000),
         member_limit: 1,
@@ -148,7 +195,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     );
     return {
       inviteLink: invite.invite_link,
-      accessUntil: user.premiumUntil,
+      accessUntil,
     };
   }
 
@@ -212,10 +259,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   ) {
     const payment = await this.prisma.payment.findUnique({
       where: { payload: successful.invoice_payload },
-      include: { user: true },
+      include: { user: true, course: true },
     });
     if (
-      !payment ||
+      !payment?.course ||
       payment.user.telegramId !== BigInt(telegramId) ||
       payment.currency !== successful.currency ||
       payment.amount !== successful.total_amount
@@ -225,11 +272,21 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (payment.status !== 'PENDING') return;
 
     const now = new Date();
+    const existingAccess = await this.prisma.courseAccess.findUnique({
+      where: {
+        userId_courseId: {
+          userId: payment.userId,
+          courseId: payment.courseId!,
+        },
+      },
+    });
     const base =
-      payment.user.premiumUntil && payment.user.premiumUntil > now
-        ? payment.user.premiumUntil
+      existingAccess?.expiresAt && existingAccess.expiresAt > now
+        ? existingAccess.expiresAt
         : now;
-    const premiumUntil = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const accessUntil = new Date(
+      base.getTime() + payment.course.accessDays * 24 * 60 * 60 * 1000,
+    );
 
     let activated = false;
     await this.prisma.$transaction(async (transaction) => {
@@ -244,18 +301,31 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       });
       if (claimed.count === 0) return;
       activated = true;
-      await transaction.user.update({
-        where: { id: payment.userId },
-        data: { isPremium: true, premiumUntil },
+      await transaction.courseAccess.upsert({
+        where: {
+          userId_courseId: {
+            userId: payment.userId,
+            courseId: payment.courseId!,
+          },
+        },
+        update: { expiresAt: accessUntil },
+        create: {
+          userId: payment.userId,
+          courseId: payment.courseId!,
+          expiresAt: accessUntil,
+        },
       });
     });
     if (activated) {
       try {
-        const invite = await this.createChannelInvite(payment.userId);
+        const invite = await this.createChannelInvite(
+          payment.userId,
+          payment.course.slug,
+        );
         await this.callTelegram('sendMessage', {
           chat_id: telegramId,
           text:
-            `To‘lov qabul qilindi. “Video yechimlar” kanaliga 30 kunlik kirishingiz faollashdi.\n\n` +
+            `To‘lov qabul qilindi. “${payment.course.title}” kursiga ${payment.course.accessDays} kunlik kirishingiz faollashdi.\n\n` +
             `Kanalga kirish: ${invite.inviteLink}\n\n` +
             `Bu bir kishilik havola. Uni boshqalarga yubormang.`,
           protect_content: true,
@@ -269,44 +339,36 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private getPrice() {
-    const configured = Number(this.config.get('PREMIUM_PRICE_STARS') ?? 100);
-    return Number.isInteger(configured) && configured > 0 ? configured : 100;
-  }
-
-  private getCourseChannelId() {
-    return (
-      this.config.get<string>('PREMIUM_TELEGRAM_CHAT_ID') ?? '-1004499182599'
-    );
-  }
-
   private async cleanupExpiredChannelAccess() {
     if (this.cleanupRunning) return;
     this.cleanupRunning = true;
     try {
-      const expiredUsers = await this.prisma.user.findMany({
+      const expiredAccess = await this.prisma.courseAccess.findMany({
         where: {
-          isPremium: true,
-          premiumUntil: { lte: new Date() },
-          role: 'STUDENT',
+          expiresAt: { lte: new Date() },
+          course: { telegramChannelId: { not: null } },
         },
-        select: { id: true, telegramId: true },
+        select: {
+          id: true,
+          expiresAt: true,
+          user: { select: { telegramId: true } },
+          course: { select: { telegramChannelId: true } },
+        },
         take: 100,
       });
-      for (const user of expiredUsers) {
+      for (const access of expiredAccess) {
         try {
           await this.callTelegram('banChatMember', {
-            chat_id: this.getCourseChannelId(),
-            user_id: user.telegramId.toString(),
+            chat_id: access.course.telegramChannelId,
+            user_id: access.user.telegramId.toString(),
           });
           await this.callTelegram('unbanChatMember', {
-            chat_id: this.getCourseChannelId(),
-            user_id: user.telegramId.toString(),
+            chat_id: access.course.telegramChannelId,
+            user_id: access.user.telegramId.toString(),
             only_if_banned: true,
           });
-          await this.prisma.user.updateMany({
-            where: { id: user.id, premiumUntil: { lte: new Date() } },
-            data: { isPremium: false },
+          await this.prisma.courseAccess.deleteMany({
+            where: { id: access.id, expiresAt: { lte: new Date() } },
           });
         } catch {
           // A temporary Telegram failure is retried on the next sweep.

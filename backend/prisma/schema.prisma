@@ -46,6 +46,7 @@ model User {
   progress     LessonProgress[]
   attempts     QuizAttempt[]
   payments     Payment[]
+  courseAccess CourseAccess[]
 
   @@map("users")
 }
@@ -53,6 +54,7 @@ model User {
 model Payment {
   id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId                  String        @map("user_id") @db.Uuid
+  courseId                String?       @map("course_id") @db.Uuid
   payload                 String        @unique
   amount                  Int
   currency                String        @default("XTR")
@@ -63,8 +65,10 @@ model Payment {
   createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course                  Course?       @relation(fields: [courseId], references: [id], onDelete: Restrict)
 
   @@index([userId, createdAt])
+  @@index([courseId, createdAt])
   @@map("payments")
 }
 
@@ -75,13 +79,34 @@ model Course {
   description String?
   imageUrl    String?  @map("image_url")
   isPremium   Boolean  @default(false) @map("is_premium")
+  priceStars  Int?     @map("price_stars")
+  priceUzs    Int?     @map("price_uzs")
+  accessDays  Int      @default(30) @map("access_days")
+  telegramChannelId String? @map("telegram_channel_id")
   isPublished Boolean  @default(false) @map("is_published")
   order       Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   lessons     Lesson[]
+  payments    Payment[]
+  access      CourseAccess[]
 
   @@map("courses")
+}
+
+model CourseAccess {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([expiresAt])
+  @@map("course_access")
 }
 
 model Lesson {

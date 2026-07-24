@@ -100,7 +100,7 @@ export class LearningService {
             isPreview: true,
             isPublished: true,
             course: {
-              select: { slug: true, isPremium: true, isPublished: true },
+              select: { id: true, slug: true, isPremium: true, isPublished: true },
             },
           },
         },
@@ -118,8 +118,9 @@ export class LearningService {
     if (!quiz || !quiz.lesson.isPublished || !quiz.lesson.course.isPublished) {
       throw new NotFoundException('Test topilmadi');
     }
-    await this.assertPremiumAccess(
+    await this.assertCourseAccess(
       userId,
+      quiz.lesson.course.id,
       quiz.lesson.course.isPremium && !quiz.lesson.isPreview,
     );
     return quiz;
@@ -136,8 +137,9 @@ export class LearningService {
     if (!quiz || !quiz.lesson.isPublished || !quiz.lesson.course.isPublished) {
       throw new NotFoundException('Test topilmadi');
     }
-    await this.assertPremiumAccess(
+    await this.assertCourseAccess(
       userId,
+      quiz.lesson.course.id,
       quiz.lesson.course.isPremium && !quiz.lesson.isPreview,
     );
 
@@ -192,27 +194,34 @@ export class LearningService {
       where: { id: lessonId, isPublished: true, course: { isPublished: true } },
       select: {
         isPreview: true,
-        course: { select: { isPremium: true } },
+        course: { select: { id: true, isPremium: true } },
       },
     });
     if (!lesson) throw new NotFoundException('Dars topilmadi');
-    await this.assertPremiumAccess(
+    await this.assertCourseAccess(
       userId,
+      lesson.course.id,
       lesson.course.isPremium && !lesson.isPreview,
     );
   }
 
-  private async assertPremiumAccess(userId: string, premiumRequired: boolean) {
-    if (!premiumRequired) return;
+  private async assertCourseAccess(
+    userId: string,
+    courseId: string,
+    purchaseRequired: boolean,
+  ) {
+    if (!purchaseRequired) return;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, isPremium: true, premiumUntil: true },
+      select: { role: true },
     });
-    const active =
-      user?.role === 'ADMIN' ||
-      (user?.isPremium === true &&
-        (user.premiumUntil === null ||
-          user.premiumUntil.getTime() > Date.now()));
-    if (!active) throw new ForbiddenException('Premium obuna talab qilinadi');
+    if (user?.role === 'ADMIN') return;
+    const access = await this.prisma.courseAccess.findUnique({
+      where: { userId_courseId: { userId, courseId } },
+      select: { expiresAt: true },
+    });
+    if (!access || access.expiresAt.getTime() <= Date.now()) {
+      throw new ForbiddenException('Bu kursni sotib olish talab qilinadi');
+    }
   }
 }

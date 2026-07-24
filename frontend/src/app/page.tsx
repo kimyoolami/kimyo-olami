@@ -2,7 +2,6 @@
 
 import {
   BookOpen,
-  Crown,
   FileText,
   FlaskConical,
   Home,
@@ -14,15 +13,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   authenticateTelegram,
-  cancelPremiumInvoice,
-  createPremiumChannelInvite,
-  createPremiumInvoice,
   getCourses,
-  getPremiumPlan,
-  getProfile,
   type AuthUser,
   type CourseSummary,
-  type PremiumPlan,
 } from "@/lib/api";
 
 export default function HomePage() {
@@ -30,9 +23,6 @@ export default function HomePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [coursesError, setCoursesError] = useState(false);
   const [authError, setAuthError] = useState(false);
-  const [premiumPlan, setPremiumPlan] = useState<PremiumPlan | null>(null);
-  const [premiumMessage, setPremiumMessage] = useState("");
-  const [paying, setPaying] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   async function loginWithTelegram() {
@@ -59,83 +49,7 @@ export default function HomePage() {
         setCoursesError(true);
       });
     queueMicrotask(() => void loginWithTelegram());
-    void getPremiumPlan().then(setPremiumPlan).catch(() => undefined);
   }, []);
-
-  async function buyPremium() {
-    if (!user) {
-      setPremiumMessage("Avval Telegram orqali kirish kerak");
-      return;
-    }
-    const telegram = (
-      window as typeof window & {
-        Telegram?: {
-          WebApp?: {
-            openInvoice?: (
-              url: string,
-              callback: (status: "paid" | "cancelled" | "failed" | "pending") => void,
-            ) => void;
-          };
-        };
-      }
-    ).Telegram?.WebApp;
-    if (!telegram?.openInvoice) {
-      setPremiumMessage("To‘lov faqat Telegram Mini App ichida ochiladi");
-      return;
-    }
-
-    setPaying(true);
-    setPremiumMessage("");
-    try {
-      const { invoiceLink, paymentId } = await createPremiumInvoice();
-      telegram.openInvoice(invoiceLink, (status) => {
-        if (status === "paid") {
-          setPremiumMessage("To‘lov qabul qilindi. Premium faollashtirilmoqda…");
-          window.setTimeout(() => {
-            void getProfile().then((profile) => {
-              setUser(profile);
-              setPremiumMessage(
-                profile.isPremium
-                  ? "Premium muvaffaqiyatli faollashtirildi"
-                  : "To‘lov tekshirilmoqda. Profilni birozdan so‘ng yangilang.",
-              );
-            });
-          }, 1500);
-        } else if (status === "failed") {
-          setPremiumMessage("To‘lov amalga oshmadi");
-          void cancelPremiumInvoice(paymentId).catch(() => undefined);
-        } else if (status === "cancelled") {
-          setPremiumMessage("To‘lov bekor qilindi");
-          void cancelPremiumInvoice(paymentId).catch(() => undefined);
-        }
-        setPaying(false);
-      });
-    } catch (error) {
-      setPremiumMessage(error instanceof Error ? error.message : "To‘lovni boshlab bo‘lmadi");
-      setPaying(false);
-    }
-  }
-
-  async function openPremiumChannel() {
-    setPremiumMessage("");
-    setPaying(true);
-    try {
-      const { inviteLink } = await createPremiumChannelInvite();
-      const telegram = (
-        window as typeof window & {
-          Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } };
-        }
-      ).Telegram?.WebApp;
-      if (telegram?.openTelegramLink) telegram.openTelegramLink(inviteLink);
-      else window.location.href = inviteLink;
-    } catch (error) {
-      setPremiumMessage(
-        error instanceof Error ? error.message : "Kanal havolasini olib bo‘lmadi",
-      );
-    } finally {
-      setPaying(false);
-    }
-  }
 
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase("uz-UZ");
   const displayedCourses = (apiCourses ?? [])
@@ -188,49 +102,6 @@ export default function HomePage() {
             className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500"
           />
         </div>
-
-        <section id="premium" className="mt-6 scroll-mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-950 p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-blue-100">
-                <Crown size={18} />
-                Video yechimlar
-              </div>
-
-              <h2 className="mt-3 max-w-xs text-2xl font-semibold leading-tight">
-                Barcha video yechimlarga 30 kunlik kirish
-              </h2>
-
-              <p className="mt-2 text-sm text-blue-100">
-                49 000 so‘m · {premiumPlan?.stars ?? 100} ⭐
-              </p>
-
-              <button
-                onClick={() =>
-                  void (user?.isPremium ? openPremiumChannel() : buyPremium())
-                }
-                disabled={paying}
-                className="mt-5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black disabled:opacity-70"
-              >
-                {user?.isPremium
-                  ? paying
-                    ? "Havola olinmoqda…"
-                    : "Kanalni ochish"
-                  : paying
-                    ? "Ochilmoqda…"
-                    : "Sotib olish"}
-              </button>
-            </div>
-
-            <Crown size={52} className="text-white/20" />
-          </div>
-        </section>
-
-        {premiumMessage && (
-          <p className="mt-3 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-3 text-center text-sm text-blue-300">
-            {premiumMessage}
-          </p>
-        )}
 
         <section id="courses" className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between">

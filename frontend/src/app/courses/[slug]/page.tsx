@@ -3,20 +3,97 @@
 import { ArrowLeft, CheckCircle2, CircleDot, Clock, FileText, LockKeyhole, Play } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { getCourse, getProgress, type CourseDetails, type ProgressItem } from "@/lib/api";
+import {
+  cancelCourseInvoice,
+  createCourseChannelInvite,
+  createCourseInvoice,
+  getCourse,
+  getCourseAccess,
+  getProgress,
+  type CourseDetails,
+  type ProgressItem,
+} from "@/lib/api";
 
 export default function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [course, setCourse] = useState<CourseDetails | null>(null);
   const [error, setError] = useState(false);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState("");
 
   useEffect(() => {
     void getCourse(slug).then(setCourse).catch(() => setError(true));
     if (localStorage.getItem("kimyo_access_token")) {
       void getProgress().then(setProgress).catch(() => undefined);
+      void getCourseAccess(slug)
+        .then((access) => setHasAccess(access.hasAccess))
+        .catch(() => undefined);
     }
   }, [slug]);
+
+  async function purchaseOrOpenChannel() {
+    if (!localStorage.getItem("kimyo_access_token")) {
+      setPurchaseMessage("Kursni sotib olish uchun Telegram orqali kiring");
+      return;
+    }
+    setBuying(true);
+    setPurchaseMessage("");
+    try {
+      if (hasAccess) {
+        const { inviteLink } = await createCourseChannelInvite(slug);
+        const webApp = (
+          window as typeof window & {
+            Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } };
+          }
+        ).Telegram?.WebApp;
+        if (webApp?.openTelegramLink) webApp.openTelegramLink(inviteLink);
+        else window.location.href = inviteLink;
+        return;
+      }
+      const webApp = (
+        window as typeof window & {
+          Telegram?: {
+            WebApp?: {
+              openInvoice?: (
+                url: string,
+                callback: (status: "paid" | "cancelled" | "failed" | "pending") => void,
+              ) => void;
+            };
+          };
+        }
+      ).Telegram?.WebApp;
+      if (!webApp?.openInvoice) {
+        setPurchaseMessage("To‘lov faqat Telegram Mini App ichida ochiladi");
+        return;
+      }
+      const { invoiceLink, paymentId } = await createCourseInvoice(slug);
+      webApp.openInvoice(invoiceLink, (status) => {
+        if (status === "paid") {
+          setPurchaseMessage("To‘lov qabul qilindi. Kirish faollashtirilmoqda…");
+          window.setTimeout(() => {
+            void getCourseAccess(slug).then((access) => {
+              setHasAccess(access.hasAccess);
+              setPurchaseMessage(
+                access.hasAccess
+                  ? "Kurs muvaffaqiyatli sotib olindi"
+                  : "To‘lov tekshirilmoqda. Birozdan so‘ng qayta bosing.",
+              );
+            });
+          }, 1500);
+        } else if (status === "cancelled" || status === "failed") {
+          setPurchaseMessage(status === "cancelled" ? "To‘lov bekor qilindi" : "To‘lov amalga oshmadi");
+          void cancelCourseInvoice(paymentId).catch(() => undefined);
+        }
+        setBuying(false);
+      });
+    } catch (error) {
+      setPurchaseMessage(error instanceof Error ? error.message : "Amalni bajarib bo‘lmadi");
+    } finally {
+      setBuying(false);
+    }
+  }
 
   if (error) {
     return (
@@ -54,10 +131,25 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
       </Link>
       <section className="mt-6 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-950 p-6">
         <div className="flex items-center gap-2 text-sm text-blue-100">
-          {course.isPremium && <LockKeyhole size={16} />} {course.isPremium ? "Premium kurs" : "Bepul kurs"}
+          {course.priceStars && <LockKeyhole size={16} />} {course.priceStars ? "Pullik kurs" : "Bepul kurs"}
         </div>
         <h1 className="mt-3 text-3xl font-semibold">{course.title}</h1>
         {course.description && <p className="mt-3 text-blue-100">{course.description}</p>}
+        {course.priceStars && (
+          <div className="mt-5">
+            <p className="text-sm text-blue-100">
+              {course.priceUzs?.toLocaleString("uz-UZ")} so‘m · {course.priceStars} ⭐ · {course.accessDays} kun
+            </p>
+            <button
+              onClick={() => void purchaseOrOpenChannel()}
+              disabled={buying}
+              className="mt-3 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black disabled:opacity-60"
+            >
+              {buying ? "Ochilmoqda…" : hasAccess ? "Kanalni ochish" : "Kursni sotib olish"}
+            </button>
+            {purchaseMessage && <p className="mt-3 text-sm text-blue-100">{purchaseMessage}</p>}
+          </div>
+        )}
         {courseProgress.length > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between text-xs text-blue-100">

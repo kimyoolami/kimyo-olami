@@ -144,10 +144,10 @@ export default function LessonPage({
       {lesson.locked ? (
         <section className="mt-8 rounded-3xl border border-blue-500/20 bg-blue-600/10 p-6 text-center">
           <LockKeyhole className="mx-auto text-blue-400" size={34} />
-          <h2 className="mt-4 text-xl font-semibold">Premium dars</h2>
-          <p className="mt-2 text-sm text-zinc-400">Bu darsni ko‘rish uchun premium obuna kerak.</p>
-          <Link href="/#premium" className="mt-5 inline-block rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold">
-            Premiumga o‘tish
+          <h2 className="mt-4 text-xl font-semibold">Pullik kurs darsi</h2>
+          <p className="mt-2 text-sm text-zinc-400">Bu darsni ko‘rish uchun kursni sotib olish kerak.</p>
+          <Link href={`/courses/${slug}`} className="mt-5 inline-block rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold">
+            Kursni sotib olish
           </Link>
         </section>
       ) : (

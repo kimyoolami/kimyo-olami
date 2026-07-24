@@ -23,10 +23,10 @@ describe('PaymentsService', () => {
     },
     user: {
       findUnique: jest.fn(),
-      update: jest.fn((input: unknown) => ({
-        operation: 'user-update',
-        input,
-      })),
+    },
+    courseAccess: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -54,7 +54,7 @@ describe('PaymentsService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('activates premium only after a matching successful payment', async () => {
+  it('activates only the purchased course after matching payment', async () => {
     prisma.payment.findUnique.mockResolvedValue({
       id: 'payment-id',
       userId: 'user-id',
@@ -62,11 +62,13 @@ describe('PaymentsService', () => {
       amount: 100,
       currency: 'XTR',
       status: 'PENDING',
+      courseId: 'course-id',
+      course: { id: 'course-id', slug: 'video-yechimlar', title: 'Video yechimlar', accessDays: 30 },
       user: {
         telegramId: 123456789n,
-        premiumUntil: null,
       },
     });
+    prisma.courseAccess.findUnique.mockResolvedValue(null);
     prisma.payment.updateMany.mockResolvedValue({ count: 1 });
 
     await service.handleTelegramUpdate(service.getWebhookSecret(), {
@@ -86,11 +88,12 @@ describe('PaymentsService', () => {
     const paymentUpdate = prisma.payment.updateMany.mock.calls[0]?.[0] as {
       data: { status: string };
     };
-    const userUpdate = prisma.user.update.mock.calls[0]?.[0] as {
-      data: { isPremium: boolean };
-    };
     expect(paymentUpdate.data.status).toBe('PAID');
-    expect(userUpdate.data.isPremium).toBe(true);
+    expect(prisma.courseAccess.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ courseId: 'course-id', userId: 'user-id' }),
+      }),
+    );
   });
 
   it('does not extend premium when another webhook already claimed the payment', async () => {
@@ -101,6 +104,8 @@ describe('PaymentsService', () => {
       amount: 100,
       currency: 'XTR',
       status: 'PENDING',
+      courseId: 'course-id',
+      course: { id: 'course-id', slug: 'video-yechimlar', title: 'Video yechimlar', accessDays: 30 },
       user: { telegramId: 123456789n, premiumUntil: null },
     });
     prisma.payment.updateMany.mockResolvedValue({ count: 0 });
@@ -118,7 +123,7 @@ describe('PaymentsService', () => {
       },
     });
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.courseAccess.upsert).not.toHaveBeenCalled();
   });
 
   it('expires only the current user pending invoice', async () => {
@@ -137,8 +142,10 @@ describe('PaymentsService', () => {
     prisma.user.findUnique.mockResolvedValue({
       telegramId: 123456789n,
       role: 'STUDENT',
-      isPremium: true,
-      premiumUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      courseAccess: [{
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        course: { telegramChannelId: '-1004499182599', title: 'Video yechimlar' },
+      }],
     });
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -149,7 +156,7 @@ describe('PaymentsService', () => {
         }),
     });
 
-    await expect(service.createChannelInvite('user-id')).resolves.toMatchObject({
+    await expect(service.createChannelInvite('user-id', 'video-yechimlar')).resolves.toMatchObject({
       inviteLink: 'https://t.me/+private',
     });
     const request = (global.fetch as jest.Mock).mock.calls[0]?.[1] as {
