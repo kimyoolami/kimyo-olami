@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import {
   authenticateTelegram,
   cancelPremiumInvoice,
+  createPremiumChannelInvite,
   createPremiumInvoice,
   getCourses,
   getPremiumPlan,
@@ -115,6 +116,27 @@ export default function HomePage() {
     }
   }
 
+  async function openPremiumChannel() {
+    setPremiumMessage("");
+    setPaying(true);
+    try {
+      const { inviteLink } = await createPremiumChannelInvite();
+      const telegram = (
+        window as typeof window & {
+          Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } };
+        }
+      ).Telegram?.WebApp;
+      if (telegram?.openTelegramLink) telegram.openTelegramLink(inviteLink);
+      else window.location.href = inviteLink;
+    } catch (error) {
+      setPremiumMessage(
+        error instanceof Error ? error.message : "Kanal havolasini olib bo‘lmadi",
+      );
+    } finally {
+      setPaying(false);
+    }
+  }
+
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase("uz-UZ");
   const displayedCourses = (apiCourses ?? [])
     .filter((course) => {
@@ -172,23 +194,31 @@ export default function HomePage() {
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-blue-100">
                 <Crown size={18} />
-                Premium
+                Video yechimlar
               </div>
 
               <h2 className="mt-3 max-w-xs text-2xl font-semibold leading-tight">
-                Barcha kurs va materiallarga to‘liq kirish
+                Barcha video yechimlarga 30 kunlik kirish
               </h2>
 
+              <p className="mt-2 text-sm text-blue-100">
+                49 000 so‘m · {premiumPlan?.stars ?? 100} ⭐
+              </p>
+
               <button
-                onClick={() => void buyPremium()}
-                disabled={paying || user?.isPremium}
+                onClick={() =>
+                  void (user?.isPremium ? openPremiumChannel() : buyPremium())
+                }
+                disabled={paying}
                 className="mt-5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black disabled:opacity-70"
               >
                 {user?.isPremium
-                  ? "Premium faol"
+                  ? paying
+                    ? "Havola olinmoqda…"
+                    : "Kanalni ochish"
                   : paying
                     ? "Ochilmoqda…"
-                    : `Premiumga o‘tish${premiumPlan ? ` — ${premiumPlan.stars} ⭐` : ""}`}
+                    : "Sotib olish"}
               </button>
             </div>
 

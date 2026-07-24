@@ -31,6 +31,13 @@ export class PaymentsController {
     return this.payments.createInvoice(request.user.id);
   }
 
+  @Post('premium-channel/invite')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @UseGuards(JwtAuthGuard)
+  createChannelInvite(@Req() request: AuthenticatedRequest) {
+    return this.payments.createChannelInvite(request.user.id);
+  }
+
   @Post('telegram-stars/:paymentId/cancel')
   @UseGuards(JwtAuthGuard)
   cancelInvoice(

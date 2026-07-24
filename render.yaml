@@ -20,3 +20,7 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: PREMIUM_PRICE_STARS
+        value: "100"
+      - key: PREMIUM_TELEGRAM_CHAT_ID
+        value: "-1004499182599"

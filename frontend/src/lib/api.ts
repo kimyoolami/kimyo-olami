@@ -360,6 +360,7 @@ export function getProfile() {
 export interface PremiumPlan {
   title: string;
   stars: number;
+  priceUzs: number;
   durationDays: number;
   currency: "XTR";
 }
@@ -382,6 +383,13 @@ export function cancelPremiumInvoice(paymentId: string) {
     `/payments/telegram-stars/${paymentId}/cancel`,
     { method: "POST" },
   );
+}
+
+export function createPremiumChannelInvite() {
+  return authorizedRequest<{
+    inviteLink: string;
+    accessUntil: string | null;
+  }>("/payments/premium-channel/invite", { method: "POST" });
 }
 
 export interface QuizDetails {

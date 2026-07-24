@@ -22,6 +22,7 @@ describe('PaymentsService', () => {
       }),
     },
     user: {
+      findUnique: jest.fn(),
       update: jest.fn((input: unknown) => ({
         operation: 'user-update',
         input,
@@ -129,6 +130,34 @@ describe('PaymentsService', () => {
     expect(prisma.payment.updateMany).toHaveBeenCalledWith({
       where: { id: 'payment-id', userId: 'user-id', status: 'PENDING' },
       data: { status: 'EXPIRED' },
+    });
+  });
+
+  it('creates a one-person channel invite for an active buyer', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      telegramId: 123456789n,
+      role: 'STUDENT',
+      isPremium: true,
+      premiumUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          result: { invite_link: 'https://t.me/+private' },
+        }),
+    });
+
+    await expect(service.createChannelInvite('user-id')).resolves.toMatchObject({
+      inviteLink: 'https://t.me/+private',
+    });
+    const request = (global.fetch as jest.Mock).mock.calls[0]?.[1] as {
+      body: string;
+    };
+    expect(JSON.parse(request.body)).toMatchObject({
+      chat_id: '-1004499182599',
+      member_limit: 1,
     });
   });
 });

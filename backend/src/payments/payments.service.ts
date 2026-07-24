@@ -1,6 +1,8 @@
 import {
   BadGatewayException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -43,8 +45,9 @@ export class PaymentsService {
 
   getPremiumPlan() {
     return {
-      title: 'Kimyo Olami Premium',
+      title: 'Video yechimlar',
       stars: this.getPrice(),
+      priceUzs: 49000,
       durationDays: 30,
       currency: 'XTR',
     };
@@ -64,11 +67,12 @@ export class PaymentsService {
 
     try {
       const invoiceLink = await this.callTelegram<string>('createInvoiceLink', {
-        title: 'Kimyo Olami Premium',
-        description: 'Barcha premium kurs va materiallarga 30 kunlik kirish',
+        title: 'Video yechimlar',
+        description:
+          'Video yechimlar yopiq kanaliga 30 kunlik kirish (49 000 so‘m)',
         payload,
         currency: 'XTR',
-        prices: [{ label: '30 kunlik Premium', amount }],
+        prices: [{ label: '30 kunlik kirish', amount }],
       });
       return { invoiceLink, paymentId: payment.id, amount, currency: 'XTR' };
     } catch (error) {
@@ -83,6 +87,51 @@ export class PaymentsService {
       data: { status: 'EXPIRED' },
     });
     return { cancelled: result.count > 0 };
+  }
+
+  async createChannelInvite(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        telegramId: true,
+        role: true,
+        isPremium: true,
+        premiumUntil: true,
+      },
+    });
+    if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
+    const now = new Date();
+    const active =
+      user.role === 'ADMIN' ||
+      (user.isPremium &&
+        user.premiumUntil !== null &&
+        user.premiumUntil.getTime() > now.getTime());
+    if (!active) {
+      throw new ForbiddenException(
+        'Video yechimlar kursini avval sotib oling',
+      );
+    }
+
+    const chatId = this.getCourseChannelId();
+    const linkExpiresAt = new Date(
+      Math.min(
+        user.premiumUntil?.getTime() ?? now.getTime() + 24 * 60 * 60 * 1000,
+        now.getTime() + 24 * 60 * 60 * 1000,
+      ),
+    );
+    const invite = await this.callTelegram<{ invite_link: string }>(
+      'createChatInviteLink',
+      {
+        chat_id: chatId,
+        name: `student-${user.telegramId.toString().slice(-12)}`,
+        expire_date: Math.floor(linkExpiresAt.getTime() / 1000),
+        member_limit: 1,
+      },
+    );
+    return {
+      inviteLink: invite.invite_link,
+      accessUntil: user.premiumUntil,
+    };
   }
 
   async handleTelegramUpdate(
@@ -164,6 +213,7 @@ export class PaymentsService {
         : now;
     const premiumUntil = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
 
+    let activated = false;
     await this.prisma.$transaction(async (transaction) => {
       const claimed = await transaction.payment.updateMany({
         where: { id: payment.id, status: 'PENDING' },
@@ -175,16 +225,41 @@ export class PaymentsService {
         },
       });
       if (claimed.count === 0) return;
+      activated = true;
       await transaction.user.update({
         where: { id: payment.userId },
         data: { isPremium: true, premiumUntil },
       });
     });
+    if (activated) {
+      try {
+        const invite = await this.createChannelInvite(payment.userId);
+        await this.callTelegram('sendMessage', {
+          chat_id: telegramId,
+          text:
+            `To‘lov qabul qilindi. “Video yechimlar” kanaliga 30 kunlik kirishingiz faollashdi.\n\n` +
+            `Kanalga kirish: ${invite.inviteLink}\n\n` +
+            `Bu bir kishilik havola. Uni boshqalarga yubormang.`,
+          protect_content: true,
+        });
+      } catch {
+        await this.callTelegram('sendMessage', {
+          chat_id: telegramId,
+          text: 'To‘lov qabul qilindi. Kanal havolasini mini ilovadagi “Kanalni ochish” tugmasi orqali oling.',
+        });
+      }
+    }
   }
 
   private getPrice() {
     const configured = Number(this.config.get('PREMIUM_PRICE_STARS') ?? 100);
     return Number.isInteger(configured) && configured > 0 ? configured : 100;
+  }
+
+  private getCourseChannelId() {
+    return (
+      this.config.get<string>('PREMIUM_TELEGRAM_CHAT_ID') ?? '-1004499182599'
+    );
   }
 
   private async handleBotCommand(chatId: number, text: string) {
