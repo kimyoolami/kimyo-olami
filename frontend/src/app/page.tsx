@@ -215,11 +215,19 @@ export default function HomePage() {
               </p>
             )}
             {apiCourses?.length === 0 && (
-              <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
+              <div className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
                 {coursesError
                   ? "Kurslarni yuklab bo‘lmadi. Keyinroq qayta urinib ko‘ring."
                   : "Kurslar tez orada qo‘shiladi."}
-              </p>
+                {coursesError && (
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="mt-3 rounded-full bg-blue-600 px-4 py-2 font-medium text-white"
+                  >
+                    Qayta yuklash
+                  </button>
+                )}
+              </div>
             )}
             {apiCourses !== null && apiCourses.length > 0 && displayedCourses.length === 0 && (
               <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">

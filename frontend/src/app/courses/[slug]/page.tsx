@@ -23,6 +23,9 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
       <main className="mx-auto min-h-screen max-w-md bg-black px-5 py-8 text-white">
         <Link href="/" className="text-blue-400">← Bosh sahifa</Link>
         <p className="mt-8 text-zinc-400">Kursni yuklab bo‘lmadi. Backend ulanishini tekshiring.</p>
+        <button onClick={() => window.location.reload()} className="mt-5 rounded-full bg-blue-600 px-5 py-3 font-semibold">
+          Qayta yuklash
+        </button>
       </main>
     );
   }

@@ -98,6 +98,11 @@ export default function LessonPage({
     return (
       <main className="min-h-screen bg-black p-8 text-center text-zinc-400">
         {error ? "Darsni yuklab bo‘lmadi." : "Yuklanmoqda…"}
+        {error && (
+          <button onClick={() => window.location.reload()} className="mx-auto mt-5 block rounded-full bg-blue-600 px-5 py-3 font-semibold text-white">
+            Qayta yuklash
+          </button>
+        )}
       </main>
     );
   }

@@ -59,11 +59,19 @@ export default function MaterialsPage() {
           </p>
         )}
         {materials?.length === 0 && (
-          <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
+          <div className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">
             {error
               ? "Materiallarni yuklab bo‘lmadi. Qayta urinib ko‘ring."
               : "PDF materiallar hali qo‘shilmagan."}
-          </p>
+            {error && (
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-3 rounded-full bg-blue-600 px-4 py-2 font-medium text-white"
+              >
+                Qayta yuklash
+              </button>
+            )}
+          </div>
         )}
         {materials !== null && materials.length > 0 && filtered.length === 0 && (
           <p className="rounded-2xl bg-zinc-900 p-5 text-center text-sm text-zinc-500">

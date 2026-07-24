@@ -48,7 +48,17 @@ export default function QuizPage({ params }: { params: Promise<{ quizId: string 
   }
 
   if (message && !quiz) {
-    return <main className="min-h-screen bg-black p-8 text-center text-red-400">{message}</main>;
+    return (
+      <main className="min-h-screen bg-black p-8 text-center text-red-400">
+        {message}
+        <button
+          onClick={() => window.location.reload()}
+          className="mx-auto mt-5 block rounded-full bg-blue-600 px-5 py-3 font-semibold text-white"
+        >
+          Qayta yuklash
+        </button>
+      </main>
+    );
   }
   if (!quiz) {
     return <main className="min-h-screen bg-black p-8 text-center text-zinc-400">Yuklanmoqda…</main>;
