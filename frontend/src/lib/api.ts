@@ -96,6 +96,8 @@ export interface AdminLesson {
   type: "TEXT" | "VIDEO" | "PDF";
   content: string | null;
   mediaUrl: string | null;
+  telegramChatId: string | null;
+  telegramMessageId: number | null;
   duration: number | null;
   isPublished: boolean;
   isPreview: boolean;
@@ -122,6 +124,8 @@ export function updateAdminLesson(
     type: "TEXT" | "VIDEO" | "PDF";
     content: string;
     mediaUrl: string;
+    telegramChatId: string;
+    telegramMessageId: number;
     duration: number;
     isPreview: boolean;
     isPublished: boolean;
@@ -198,6 +202,7 @@ export interface LessonDetails {
   duration: number | null;
   isPreview: boolean;
   locked: boolean;
+  telegramVideoAvailable: boolean;
   course: { slug: string; title: string; isPremium: boolean };
   quiz: { id: string; title: string; passScore: number } | null;
 }
@@ -305,6 +310,13 @@ export function getCourse(slug: string) {
 export function getLesson(courseSlug: string, lessonSlug: string) {
   return optionallyAuthorizedRequest<LessonDetails>(
     `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`,
+  );
+}
+
+export function deliverTelegramVideo(courseSlug: string, lessonSlug: string) {
+  return authorizedRequest<{ delivered: true; chatUrl: string }>(
+    `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}/telegram-video`,
+    { method: "POST" },
   );
 }
 

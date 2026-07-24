@@ -1,7 +1,11 @@
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CoursesService } from './courses.service';
 
 describe('CoursesService premium access', () => {
+  const config = {
+    get: jest.fn().mockReturnValue('bot-token'),
+  } as unknown as ConfigService;
   const lesson = {
     id: 'lesson-id',
     slug: 'premium-lesson',
@@ -26,7 +30,10 @@ describe('CoursesService premium access', () => {
       lesson: { findFirst: jest.fn().mockResolvedValue(lesson) },
       user: { findUnique: jest.fn() },
     };
-    const service = new CoursesService(prisma as unknown as PrismaService);
+    const service = new CoursesService(
+      prisma as unknown as PrismaService,
+      config,
+    );
 
     const result = await service.findLesson('premium-course', 'premium-lesson');
 
@@ -45,7 +52,10 @@ describe('CoursesService premium access', () => {
         }),
       },
     };
-    const service = new CoursesService(prisma as unknown as PrismaService);
+    const service = new CoursesService(
+      prisma as unknown as PrismaService,
+      config,
+    );
 
     const result = await service.findLesson(
       'premium-course',
@@ -60,7 +70,10 @@ describe('CoursesService premium access', () => {
   it('lists only published PDF materials from published courses', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma = { lesson: { findMany } };
-    const service = new CoursesService(prisma as unknown as PrismaService);
+    const service = new CoursesService(
+      prisma as unknown as PrismaService,
+      config,
+    );
 
     await service.findPdfMaterials();
 
@@ -88,7 +101,10 @@ describe('CoursesService premium access', () => {
       },
       user: { findUnique: jest.fn() },
     };
-    const service = new CoursesService(prisma as unknown as PrismaService);
+    const service = new CoursesService(
+      prisma as unknown as PrismaService,
+      config,
+    );
 
     const result = await service.getLessonMedia('course', 'lesson');
 
@@ -109,10 +125,60 @@ describe('CoursesService premium access', () => {
         }),
       },
     };
-    const service = new CoursesService(prisma as unknown as PrismaService);
+    const service = new CoursesService(
+      prisma as unknown as PrismaService,
+      config,
+    );
 
     await expect(service.getLessonMedia('course', 'lesson')).rejects.toThrow(
       'Premium obuna',
+    );
+  });
+
+  it('copies an allowed Telegram video to the student with protection', async () => {
+    const prisma = {
+      lesson: {
+        findFirst: jest.fn().mockResolvedValue({
+          isPreview: false,
+          telegramChatId: '-1001234567890',
+          telegramMessageId: 42,
+          course: { isPremium: true },
+        }),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          telegramId: 123456789n,
+          role: 'STUDENT',
+          isPremium: true,
+          premiumUntil: new Date(Date.now() + 60_000),
+        }),
+      },
+    };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, result: { message_id: 1 } }),
+    });
+    const service = new CoursesService(
+      prisma as unknown as PrismaService,
+      config,
+    );
+
+    await expect(
+      service.deliverTelegramVideo('course', 'lesson', 'user-id'),
+    ).resolves.toEqual({
+      delivered: true,
+      chatUrl: 'https://t.me/kimyo_olami_bot',
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/copyMessage'),
+      expect.objectContaining({
+        body: JSON.stringify({
+          chat_id: '123456789',
+          from_chat_id: '-1001234567890',
+          message_id: 42,
+          protect_content: true,
+        }),
+      }),
     );
   });
 });

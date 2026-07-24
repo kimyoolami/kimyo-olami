@@ -49,6 +49,26 @@ describe('AdminService', () => {
     expect(prisma.lesson.create).not.toHaveBeenCalled();
   });
 
+  it('allows publishing a video lesson linked to a Telegram channel post', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'lesson-id' });
+    const prisma = {
+      course: { findUnique: jest.fn().mockResolvedValue({ id: 'course-id' }) },
+      lesson: { create },
+    };
+    const service = new AdminService(prisma as unknown as PrismaService);
+
+    await service.createLesson('course-id', {
+      slug: 'telegram-video',
+      title: 'Telegram video',
+      type: LessonType.VIDEO,
+      telegramChatId: '-1001234567890',
+      telegramMessageId: 42,
+      isPublished: true,
+    });
+
+    expect(create).toHaveBeenCalled();
+  });
+
   it('rejects publishing an empty text lesson', async () => {
     const prisma = {
       course: { findUnique: jest.fn().mockResolvedValue({ id: 'course-id' }) },

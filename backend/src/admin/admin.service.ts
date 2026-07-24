@@ -79,6 +79,8 @@ export class AdminService {
       dto.type,
       dto.content,
       dto.mediaUrl,
+      dto.telegramChatId,
+      dto.telegramMessageId,
       dto.isPublished,
     );
     return this.prisma.lesson.create({ data: { ...dto, courseId } });
@@ -90,6 +92,12 @@ export class AdminService {
       dto.type ?? lesson.type,
       dto.content === undefined ? lesson.content : dto.content,
       dto.mediaUrl === undefined ? lesson.mediaUrl : dto.mediaUrl,
+      dto.telegramChatId === undefined
+        ? lesson.telegramChatId
+        : dto.telegramChatId,
+      dto.telegramMessageId === undefined
+        ? lesson.telegramMessageId
+        : dto.telegramMessageId,
       dto.isPublished ?? lesson.isPublished,
     );
     return this.prisma.lesson.update({
@@ -205,6 +213,8 @@ export class AdminService {
         type: true,
         content: true,
         mediaUrl: true,
+        telegramChatId: true,
+        telegramMessageId: true,
         isPublished: true,
         slug: true,
         course: { select: { slug: true } },
@@ -218,6 +228,8 @@ export class AdminService {
     type: LessonType,
     content: string | null | undefined,
     mediaUrl: string | null | undefined,
+    telegramChatId: string | null | undefined,
+    telegramMessageId: number | null | undefined,
     isPublished: boolean | undefined,
   ) {
     if (!isPublished) return;
@@ -226,12 +238,18 @@ export class AdminService {
         'Matnli darsni nashr qilish uchun dars matnini kiriting',
       );
     }
-    if (
-      (type === LessonType.VIDEO || type === LessonType.PDF) &&
-      !mediaUrl?.trim()
-    ) {
+    if (type === LessonType.VIDEO) {
+      const hasExternalVideo = Boolean(mediaUrl?.trim());
+      const hasTelegramVideo = Boolean(telegramChatId && telegramMessageId);
+      if (!hasExternalVideo && !hasTelegramVideo) {
+        throw new BadRequestException(
+          'Video darsni nashr qilish uchun Telegram post yoki media havolasini kiriting',
+        );
+      }
+    }
+    if (type === LessonType.PDF && !mediaUrl?.trim()) {
       throw new BadRequestException(
-        'Video yoki PDF darsni nashr qilish uchun media havolasini kiriting',
+        'PDF darsni nashr qilish uchun media havolasini kiriting',
       );
     }
   }

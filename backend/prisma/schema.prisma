@@ -96,6 +96,8 @@ model Lesson {
   mediaData   Bytes?           @map("media_data")
   mediaMimeType String?        @map("media_mime_type")
   mediaFileName String?        @map("media_file_name")
+  telegramChatId String?       @map("telegram_chat_id")
+  telegramMessageId Int?       @map("telegram_message_id")
   duration    Int?
   isPreview   Boolean          @default(false) @map("is_preview")
   isPublished Boolean          @default(false) @map("is_published")

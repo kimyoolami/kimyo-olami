@@ -6,6 +6,7 @@ import {
   IsString,
   IsUrl,
   Matches,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -36,6 +37,17 @@ export class CreateLessonDto {
   @ValidateIf((_, value: unknown) => value !== undefined && value !== '')
   @IsUrl()
   mediaUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^-?\d+$/)
+  telegramChatId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2_147_483_647)
+  telegramMessageId?: number;
 
   @IsOptional()
   @IsInt()

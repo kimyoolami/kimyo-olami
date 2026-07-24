@@ -2,14 +2,20 @@ import {
   Controller,
   Get,
   Param,
+  Post,
   Req,
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   OptionalJwtAuthGuard,
   type OptionalAuthenticatedRequest,
 } from '../auth/optional-jwt-auth.guard';
+import {
+  JwtAuthGuard,
+  type AuthenticatedRequest,
+} from '../auth/jwt-auth.guard';
 import { CoursesService } from './courses.service';
 
 @Controller('courses')
@@ -37,6 +43,21 @@ export class CoursesController {
       courseSlug,
       lessonSlug,
       request.user?.id,
+    );
+  }
+
+  @Post(':courseSlug/lessons/:lessonSlug/telegram-video')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  deliverTelegramVideo(
+    @Req() request: AuthenticatedRequest,
+    @Param('courseSlug') courseSlug: string,
+    @Param('lessonSlug') lessonSlug: string,
+  ) {
+    return this.coursesService.deliverTelegramVideo(
+      courseSlug,
+      lessonSlug,
+      request.user.id,
     );
   }
 

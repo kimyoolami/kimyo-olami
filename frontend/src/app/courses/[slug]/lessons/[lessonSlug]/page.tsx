@@ -3,7 +3,7 @@
 import { ArrowLeft, FileText, LockKeyhole, Play } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { getLesson, getLessonMediaBlob, updateProgress, type LessonDetails } from "@/lib/api";
+import { deliverTelegramVideo, getLesson, getLessonMediaBlob, updateProgress, type LessonDetails } from "@/lib/api";
 
 function getYouTubeEmbedUrl(mediaUrl: string) {
   try {
@@ -43,6 +43,8 @@ export default function LessonPage({
   const [completing, setCompleting] = useState(false);
   const [progressMessage, setProgressMessage] = useState("");
   const [pdfObjectUrl, setPdfObjectUrl] = useState<string | null>(null);
+  const [deliveringVideo, setDeliveringVideo] = useState(false);
+  const [videoMessage, setVideoMessage] = useState("");
 
   useEffect(() => {
     void getLesson(slug, lessonSlug)
@@ -94,6 +96,30 @@ export default function LessonPage({
     }
   }
 
+  async function openTelegramVideo() {
+    setDeliveringVideo(true);
+    setVideoMessage("");
+    try {
+      const result = await deliverTelegramVideo(slug, lessonSlug);
+      setVideoMessage("Video bot chatiga yuborildi");
+      const telegram = (
+        window as typeof window & {
+          Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } };
+        }
+      ).Telegram?.WebApp;
+      if (telegram?.openTelegramLink) telegram.openTelegramLink(result.chatUrl);
+      else window.location.href = result.chatUrl;
+    } catch (deliveryError) {
+      setVideoMessage(
+        deliveryError instanceof Error
+          ? deliveryError.message
+          : "Videoni yuborib bo‘lmadi",
+      );
+    } finally {
+      setDeliveringVideo(false);
+    }
+  }
+
   if (error || !lesson) {
     return (
       <main className="min-h-screen bg-black p-8 text-center text-zinc-400">
@@ -126,6 +152,21 @@ export default function LessonPage({
         </section>
       ) : (
         <section className="mt-8">
+          {lesson.type === "VIDEO" && lesson.telegramVideoAvailable && (
+            <div className="space-y-3">
+              <button
+                onClick={() => void openTelegramVideo()}
+                disabled={deliveringVideo}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 p-4 font-semibold disabled:opacity-60"
+              >
+                <Play size={20} />
+                {deliveringVideo ? "Telegramga yuborilmoqda…" : "Videoni Telegramda ko‘rish"}
+              </button>
+              {videoMessage && (
+                <p className="text-center text-sm text-zinc-400">{videoMessage}</p>
+              )}
+            </div>
+          )}
           {lesson.mediaUrl && lesson.type === "VIDEO" && (() => {
             const youtubeEmbedUrl = getYouTubeEmbedUrl(lesson.mediaUrl);
             if (youtubeEmbedUrl) {

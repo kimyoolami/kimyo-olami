@@ -25,6 +25,25 @@ const emptyQuestion = (): QuizQuestionDraft => ({
   ],
 });
 
+function parseTelegramPostUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^https:\/\/t\.me\/c\/(\d+)\/(\d+)(?:\?.*)?$/);
+  if (!match) {
+    throw new Error("Telegram yopiq kanal post havolasi noto‘g‘ri");
+  }
+  return {
+    telegramChatId: `-100${match[1]}`,
+    telegramMessageId: Number(match[2]),
+  };
+}
+
+function getTelegramPostUrl(lesson: AdminLesson) {
+  if (!lesson.telegramChatId || !lesson.telegramMessageId) return "";
+  const channelId = lesson.telegramChatId.replace(/^-100/, "");
+  return `https://t.me/c/${channelId}/${lesson.telegramMessageId}`;
+}
+
 export default function AdminCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = use(params);
   const [lessons, setLessons] = useState<AdminLesson[]>([]);
@@ -44,6 +63,9 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
+      const telegramPost = parseTelegramPostUrl(
+        String(form.get("telegramPostUrl") || ""),
+      );
       const lesson = await createAdminLesson(courseId, {
         title: String(form.get("title")),
         slug: String(form.get("slug")),
@@ -51,6 +73,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
         type: String(form.get("type")),
         content: String(form.get("content") || ""),
         mediaUrl: String(form.get("mediaUrl") || ""),
+        ...telegramPost,
         duration: Number(form.get("duration") || 0) || undefined,
         order: Number(form.get("order") || 0),
         isPreview: form.get("isPreview") === "on",
@@ -97,12 +120,16 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
     const form = new FormData(event.currentTarget);
     setMessage("");
     try {
+      const telegramPost = parseTelegramPostUrl(
+        String(form.get("telegramPostUrl") || ""),
+      );
       const updated = await updateAdminLesson(editing.id, {
         title: String(form.get("title")),
         description: String(form.get("description") || ""),
         type: String(form.get("type")) as AdminLesson["type"],
         content: String(form.get("content") || ""),
         mediaUrl: String(form.get("mediaUrl") || ""),
+        ...(telegramPost ?? {}),
         duration: Number(form.get("duration") || 0) || undefined,
         order: Number(form.get("order") || 0),
         isPreview: form.get("isPreview") === "on",
@@ -240,6 +267,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
         <select name="type" className="w-full rounded-xl bg-black p-3"><option value="TEXT">Matn</option><option value="VIDEO">Video</option><option value="PDF">PDF</option></select>
         <textarea name="content" placeholder="Dars matni" className="min-h-28 w-full rounded-xl bg-black p-3" />
         <input name="mediaUrl" type="url" placeholder="Video yoki PDF URL" className="w-full rounded-xl bg-black p-3" />
+        <input name="telegramPostUrl" type="url" placeholder="Telegram yopiq kanal post havolasi" className="w-full rounded-xl bg-black p-3" />
         <p className="text-xs text-zinc-500">YouTube, MP4/WebM yoki to‘g‘ridan-to‘g‘ri PDF havolasi qabul qilinadi.</p>
         <div className="grid grid-cols-2 gap-3">
           <label className="text-xs text-zinc-400">Davomiyligi (daqiqa)<input name="duration" type="number" min="0" className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
@@ -312,6 +340,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ courseId
           </label>
           <textarea name="content" defaultValue={editing.content ?? ""} placeholder="Dars matni" className="min-h-40 w-full rounded-xl bg-black p-3" />
           <input name="mediaUrl" type="url" defaultValue={editing.mediaUrl ?? ""} placeholder="Video yoki PDF URL" className="w-full rounded-xl bg-black p-3" />
+          <input name="telegramPostUrl" type="url" defaultValue={getTelegramPostUrl(editing)} placeholder="Telegram yopiq kanal post havolasi" className="w-full rounded-xl bg-black p-3" />
           <p className="text-xs text-zinc-500">YouTube, MP4/WebM yoki to‘g‘ridan-to‘g‘ri PDF havolasi. Bo‘sh qoldirsangiz eski havola o‘chiriladi.</p>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs text-zinc-400">Davomiyligi (daqiqa)<input name="duration" type="number" min="0" defaultValue={editing.duration ?? ""} className="mt-1 w-full rounded-xl bg-black p-3 text-white" /></label>
