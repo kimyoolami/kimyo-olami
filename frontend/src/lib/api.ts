@@ -376,7 +376,12 @@ export interface QuizDetails {
   id: string;
   title: string;
   passScore: number;
-  lesson: { id: string; title: string };
+  lesson: {
+    id: string;
+    slug: string;
+    title: string;
+    course: { slug: string };
+  };
   questions: Array<{
     id: string;
     text: string;

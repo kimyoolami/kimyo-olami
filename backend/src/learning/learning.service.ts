@@ -95,10 +95,13 @@ export class LearningService {
         lesson: {
           select: {
             id: true,
+            slug: true,
             title: true,
             isPreview: true,
             isPublished: true,
-            course: { select: { isPremium: true, isPublished: true } },
+            course: {
+              select: { slug: true, isPremium: true, isPublished: true },
+            },
           },
         },
         questions: {

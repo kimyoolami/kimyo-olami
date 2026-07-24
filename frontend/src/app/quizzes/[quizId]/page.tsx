@@ -85,7 +85,12 @@ export default function QuizPage({ params }: { params: Promise<{ quizId: string 
         >
           <RotateCcw size={18} /> Qayta topshirish
         </button>
-        <Link href="/" className="mt-5 block text-sm text-zinc-400">Bosh sahifaga qaytish</Link>
+        <Link
+          href={`/courses/${quiz.lesson.course.slug}/lessons/${quiz.lesson.slug}`}
+          className="mt-5 block text-sm text-blue-400"
+        >
+          Darsga qaytish
+        </Link>
       </main>
     );
   }
