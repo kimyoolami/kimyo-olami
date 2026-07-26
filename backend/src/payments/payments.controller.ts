@@ -33,6 +33,12 @@ export class PaymentsController {
     return this.payments.getCourseAccess(request.user.id, courseSlug);
   }
 
+  @Get('my-courses')
+  @UseGuards(JwtAuthGuard)
+  getMyCourses(@Req() request: AuthenticatedRequest) {
+    return this.payments.getMyCourses(request.user.id);
+  }
+
   @Post('courses/:courseSlug/telegram-stars/invoice')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)

@@ -5,25 +5,29 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   getProfile,
+  getMyCourses,
   getProgress,
   getQuizAttempts,
   type AuthUser,
   type ProgressItem,
   type QuizAttemptItem,
+  type MyCourse,
 } from "@/lib/api";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [attempts, setAttempts] = useState<QuizAttemptItem[]>([]);
+  const [myCourses, setMyCourses] = useState<MyCourse[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    void Promise.all([getProfile(), getProgress(), getQuizAttempts()])
-      .then(([profile, items, quizAttempts]) => {
+    void Promise.all([getProfile(), getProgress(), getQuizAttempts(), getMyCourses()])
+      .then(([profile, items, quizAttempts, purchasedCourses]) => {
         setUser(profile);
         setProgress(items);
         setAttempts(quizAttempts);
+        setMyCourses(purchasedCourses);
       })
       .catch(() => setMessage("Profil uchun Telegram Mini App orqali kiring."));
   }, []);
@@ -72,6 +76,26 @@ export default function ProfilePage() {
             <p className="text-sm text-zinc-500">Boshlangan dars</p>
           </div>
         </div>
+      )}
+
+      {myCourses.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold">Mening kurslarim</h2>
+          <div className="mt-4 space-y-3">
+            {myCourses.map((access) => (
+              <Link
+                key={access.course.slug}
+                href={`/courses/${access.course.slug}`}
+                className="block rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4"
+              >
+                <p className="font-medium">{access.course.title}</p>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {new Intl.DateTimeFormat("uz-UZ", { dateStyle: "long" }).format(new Date(access.expiresAt))} gacha
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       <section className="mt-8">

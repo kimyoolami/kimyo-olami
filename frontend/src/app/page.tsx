@@ -153,6 +153,11 @@ export default function HomePage() {
                     <p className="mt-1 text-sm text-zinc-500">
                       {course.subtitle}
                     </p>
+                    {course.priceUzs && (
+                      <p className="mt-1 text-sm font-medium text-blue-400">
+                        {course.priceUzs.toLocaleString("uz-UZ")} so‘m
+                      </p>
+                    )}
                   </div>
 
                   <span className="text-zinc-600">›</span>

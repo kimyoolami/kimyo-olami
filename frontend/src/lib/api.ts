@@ -389,6 +389,21 @@ export function getCourseAccess(courseSlug: string) {
   );
 }
 
+export interface MyCourse {
+  expiresAt: string;
+  course: {
+    slug: string;
+    title: string;
+    description: string | null;
+    priceUzs: number | null;
+    accessDays: number;
+  };
+}
+
+export function getMyCourses() {
+  return authorizedRequest<MyCourse[]>("/payments/my-courses");
+}
+
 export function createCourseInvoice(courseSlug: string) {
   return authorizedRequest<{
     invoiceLink: string;

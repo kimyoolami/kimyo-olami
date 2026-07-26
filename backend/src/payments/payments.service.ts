@@ -95,6 +95,25 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  getMyCourses(userId: string) {
+    return this.prisma.courseAccess.findMany({
+      where: { userId, expiresAt: { gt: new Date() } },
+      orderBy: { expiresAt: 'asc' },
+      select: {
+        expiresAt: true,
+        course: {
+          select: {
+            slug: true,
+            title: true,
+            description: true,
+            priceUzs: true,
+            accessDays: true,
+          },
+        },
+      },
+    });
+  }
+
   async createInvoice(userId: string, courseSlug: string) {
     await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
