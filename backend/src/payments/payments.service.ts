@@ -124,6 +124,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         slug: courseSlug,
         isPublished: true,
         priceStars: { not: null },
+        telegramChannelId: { not: null },
       },
       select: {
         id: true,

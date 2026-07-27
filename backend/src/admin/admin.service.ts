@@ -52,12 +52,27 @@ export class AdminService {
   }
 
   createCourse(dto: CreateCourseDto) {
-    return this.prisma.course.create({ data: dto });
+    this.assertCourseSaleReady(
+      dto.priceStars,
+      dto.priceUzs,
+      dto.telegramChannelId,
+    );
+    return this.prisma.course.create({
+      data: { ...dto, isPremium: Boolean(dto.priceStars) },
+    });
   }
 
   async updateCourse(id: string, dto: UpdateCourseDto) {
-    await this.requireCourse(id);
-    return this.prisma.course.update({ where: { id }, data: dto });
+    const course = await this.requireCourse(id);
+    const priceStars = dto.priceStars ?? course.priceStars;
+    const priceUzs = dto.priceUzs ?? course.priceUzs;
+    const telegramChannelId =
+      dto.telegramChannelId ?? course.telegramChannelId;
+    this.assertCourseSaleReady(priceStars, priceUzs, telegramChannelId);
+    return this.prisma.course.update({
+      where: { id },
+      data: { ...dto, isPremium: Boolean(priceStars) },
+    });
   }
 
   async deleteCourse(id: string) {
@@ -201,9 +216,30 @@ export class AdminService {
   private async requireCourse(id: string) {
     const course = await this.prisma.course.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        priceStars: true,
+        priceUzs: true,
+        telegramChannelId: true,
+      },
     });
     if (!course) throw new NotFoundException('Kurs topilmadi');
+    return course;
+  }
+
+  private assertCourseSaleReady(
+    priceStars: number | null | undefined,
+    priceUzs: number | null | undefined,
+    telegramChannelId: string | null | undefined,
+  ) {
+    const configured = [priceStars, priceUzs, telegramChannelId].filter(
+      (value) => value !== null && value !== undefined && value !== '',
+    ).length;
+    if (configured !== 0 && configured !== 3) {
+      throw new BadRequestException(
+        'Pullik kurs uchun so‘m narxi, Stars narxi va Telegram kanal ID-si birga kiritilishi kerak',
+      );
+    }
   }
 
   private async requireLesson(id: string) {

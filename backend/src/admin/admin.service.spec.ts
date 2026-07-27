@@ -3,6 +3,21 @@ import { AdminService } from './admin.service';
 import { LessonType } from '../../generated/prisma/enums';
 
 describe('AdminService', () => {
+  it('rejects a paid course without its Telegram channel', async () => {
+    const prisma = { course: { create: jest.fn() } };
+    const service = new AdminService(prisma as unknown as PrismaService);
+
+    expect(() =>
+      service.createCourse({
+        slug: 'pullik-kurs',
+        title: 'Pullik kurs',
+        priceStars: 100,
+        priceUzs: 49000,
+      }),
+    ).toThrow('Telegram kanal ID-si');
+    expect(prisma.course.create).not.toHaveBeenCalled();
+  });
+
   it('serializes Telegram IDs in the payment list', async () => {
     const prisma = {
       payment: {
