@@ -24,7 +24,6 @@ export class CoursesService {
         title: true,
         description: true,
         imageUrl: true,
-        isPremium: true,
         priceStars: true,
         priceUzs: true,
         accessDays: true,
@@ -56,7 +55,7 @@ export class CoursesService {
           select: {
             slug: true,
             title: true,
-            isPremium: true,
+            priceStars: true,
           },
         },
       },
@@ -72,7 +71,6 @@ export class CoursesService {
         title: true,
         description: true,
         imageUrl: true,
-        isPremium: true,
         priceStars: true,
         priceUzs: true,
         accessDays: true,
@@ -120,7 +118,7 @@ export class CoursesService {
         duration: true,
         isPreview: true,
         course: {
-          select: { id: true, slug: true, title: true, isPremium: true },
+          select: { id: true, slug: true, title: true, priceStars: true },
         },
         quiz: { select: { id: true, title: true, passScore: true } },
       },
@@ -130,12 +128,14 @@ export class CoursesService {
       throw new NotFoundException('Dars topilmadi');
     }
 
-    let hasPremiumAccess = false;
-    if (userId && lesson.course.isPremium && !lesson.isPreview) {
-      hasPremiumAccess = await this.hasCourseAccess(userId, lesson.course.id);
+    let hasCourseAccess = false;
+    if (userId && lesson.course.priceStars && !lesson.isPreview) {
+      hasCourseAccess = await this.hasCourseAccess(userId, lesson.course.id);
     }
     const locked =
-      lesson.course.isPremium && !lesson.isPreview && !hasPremiumAccess;
+      Boolean(lesson.course.priceStars) &&
+      !lesson.isPreview &&
+      !hasCourseAccess;
     const { telegramChatId, telegramMessageId, ...publicLesson } = lesson;
     return {
       ...publicLesson,
@@ -163,7 +163,7 @@ export class CoursesService {
         isPreview: true,
         telegramChatId: true,
         telegramMessageId: true,
-        course: { select: { id: true, isPremium: true } },
+        course: { select: { id: true, priceStars: true } },
       },
     });
     if (!lesson?.telegramChatId || !lesson.telegramMessageId) {
@@ -174,13 +174,11 @@ export class CoursesService {
       select: {
         telegramId: true,
         role: true,
-        isPremium: true,
-        premiumUntil: true,
       },
     });
     if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
     if (
-      lesson.course.isPremium &&
+      lesson.course.priceStars &&
       !lesson.isPreview &&
       !(await this.hasCourseAccess(userId, lesson.course.id))
     ) {
@@ -214,13 +212,13 @@ export class CoursesService {
         mediaData: true,
         mediaMimeType: true,
         mediaFileName: true,
-        course: { select: { id: true, isPremium: true } },
+        course: { select: { id: true, priceStars: true } },
       },
     });
     if (!lesson?.mediaData || !lesson.mediaMimeType) {
       throw new NotFoundException('Dars fayli topilmadi');
     }
-    if (lesson.course.isPremium && !lesson.isPreview) {
+    if (lesson.course.priceStars && !lesson.isPreview) {
       if (!userId)
         throw new ForbiddenException('Bu kursni sotib olish talab qilinadi');
       const active = await this.hasCourseAccess(userId, lesson.course.id);

@@ -2,7 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProgressStatus } from '../../generated/prisma/enums';
 import { LearningService } from './learning.service';
 
-describe('LearningService premium access', () => {
+describe('LearningService course purchase access', () => {
   it('returns the latest quiz attempts for the current user', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma = { quizAttempt: { findMany } };
@@ -19,17 +19,17 @@ describe('LearningService premium access', () => {
     );
   });
 
-  it('allows administrators to open premium quizzes', async () => {
+  it('allows administrators to open paid course quizzes', async () => {
     const quiz = {
       id: 'quiz-id',
-      title: 'Premium quiz',
+      title: 'Paid course quiz',
       passScore: 70,
       lesson: {
         id: 'lesson-id',
-        title: 'Premium lesson',
+        title: 'Paid lesson',
         isPreview: false,
         isPublished: true,
-        course: { isPremium: true, isPublished: true },
+        course: { id: 'course-id', priceStars: 100, isPublished: true },
       },
       questions: [],
     };
@@ -38,8 +38,6 @@ describe('LearningService premium access', () => {
       user: {
         findUnique: jest.fn().mockResolvedValue({
           role: 'ADMIN',
-          isPremium: false,
-          premiumUntil: null,
         }),
       },
     };
@@ -61,7 +59,7 @@ describe('LearningService premium access', () => {
       lesson: {
         findFirst: jest.fn().mockResolvedValue({
           isPreview: false,
-          course: { isPremium: false },
+          course: { id: 'course-id', priceStars: null },
         }),
       },
       lessonProgress: {
@@ -81,13 +79,13 @@ describe('LearningService premium access', () => {
     expect(prisma.lessonProgress.upsert).not.toHaveBeenCalled();
   });
 
-  it('tracks a preview lesson without requiring premium access', async () => {
+  it('tracks a preview lesson without requiring a purchase', async () => {
     const upsert = jest.fn().mockResolvedValue({ status: 'IN_PROGRESS' });
     const prisma = {
       lesson: {
         findFirst: jest.fn().mockResolvedValue({
           isPreview: true,
-          course: { isPremium: true },
+          course: { id: 'course-id', priceStars: 100 },
         }),
       },
       user: { findUnique: jest.fn() },
@@ -108,7 +106,7 @@ describe('LearningService premium access', () => {
     expect(upsert).toHaveBeenCalled();
   });
 
-  it('allows signed-in students to open preview quizzes in premium courses', async () => {
+  it('allows signed-in students to open preview quizzes in paid courses', async () => {
     const quiz = {
       id: 'quiz-id',
       title: 'Preview quiz',
@@ -118,7 +116,7 @@ describe('LearningService premium access', () => {
         title: 'Preview lesson',
         isPreview: true,
         isPublished: true,
-        course: { isPremium: true, isPublished: true },
+        course: { id: 'course-id', priceStars: 100, isPublished: true },
       },
       questions: [],
     };

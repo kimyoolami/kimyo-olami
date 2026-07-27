@@ -57,9 +57,7 @@ export class AdminService {
       dto.priceUzs,
       dto.telegramChannelId,
     );
-    return this.prisma.course.create({
-      data: { ...dto, isPremium: Boolean(dto.priceStars) },
-    });
+    return this.prisma.course.create({ data: dto });
   }
 
   async updateCourse(id: string, dto: UpdateCourseDto) {
@@ -69,10 +67,7 @@ export class AdminService {
     const telegramChannelId =
       dto.telegramChannelId ?? course.telegramChannelId;
     this.assertCourseSaleReady(priceStars, priceUzs, telegramChannelId);
-    return this.prisma.course.update({
-      where: { id },
-      data: { ...dto, isPremium: Boolean(priceStars) },
-    });
+    return this.prisma.course.update({ where: { id }, data: dto });
   }
 
   async deleteCourse(id: string) {

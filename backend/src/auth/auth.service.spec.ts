@@ -14,8 +14,6 @@ describe('AuthService', () => {
     lastName: null,
     username: 'ali',
     role: 'STUDENT' as const,
-    isPremium: false,
-    premiumUntil: null,
   };
   const prisma = {
     user: { upsert: jest.fn().mockResolvedValue(user) },
@@ -68,14 +66,9 @@ describe('AuthService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('reports an expired premium subscription as inactive', async () => {
-    const expiredUser = {
-      ...user,
-      isPremium: true,
-      premiumUntil: new Date(Date.now() - 60_000),
-    };
+  it('returns a profile without the removed premium fields', async () => {
     const localPrisma = {
-      user: { findUnique: jest.fn().mockResolvedValue(expiredUser) },
+      user: { findUnique: jest.fn().mockResolvedValue(user) },
     };
     const localService = new AuthService(
       config as unknown as ConfigService,
@@ -83,24 +76,8 @@ describe('AuthService', () => {
       localPrisma as unknown as PrismaService,
     );
 
-    await expect(localService.getProfile(user.id)).resolves.toMatchObject({
-      isPremium: false,
-    });
-  });
-
-  it('reports administrators as premium without requiring payment', async () => {
-    const adminUser = { ...user, role: 'ADMIN' as const };
-    const localPrisma = {
-      user: { findUnique: jest.fn().mockResolvedValue(adminUser) },
-    };
-    const localService = new AuthService(
-      config as unknown as ConfigService,
-      jwt as unknown as JwtService,
-      localPrisma as unknown as PrismaService,
-    );
-
-    await expect(localService.getProfile(user.id)).resolves.toMatchObject({
-      isPremium: true,
-    });
+    const profile = await localService.getProfile(user.id);
+    expect(profile).not.toHaveProperty('isPremium');
+    expect(profile).not.toHaveProperty('premiumUntil');
   });
 });

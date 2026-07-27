@@ -79,7 +79,7 @@ export default function MaterialsPage() {
           </p>
         )}
         {filtered.map((material) => {
-          const locked = material.course.isPremium && !material.isPreview;
+          const locked = Boolean(material.course.priceStars) && !material.isPreview;
           return (
             <Link
               key={material.id}

@@ -28,10 +28,6 @@ export class CreateCourseDto {
   imageUrl?: string;
 
   @IsOptional()
-  @IsBoolean()
-  isPremium?: boolean;
-
-  @IsOptional()
   @IsInt()
   @Min(1)
   priceStars?: number;

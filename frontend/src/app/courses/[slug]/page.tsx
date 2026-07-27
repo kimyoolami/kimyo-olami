@@ -190,7 +190,7 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
                   <CheckCircle2 size={19} className="text-emerald-400" />
                 ) : lessonStatus === "IN_PROGRESS" ? (
                   <CircleDot size={19} className="text-blue-400" />
-                ) : !lesson.isPreview && course.isPremium ? (
+                ) : !lesson.isPreview && course.priceStars ? (
                   <LockKeyhole size={17} className="text-zinc-600" />
                 ) : null}
               </Link>

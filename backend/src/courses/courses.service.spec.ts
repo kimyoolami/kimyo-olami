@@ -2,14 +2,14 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CoursesService } from './courses.service';
 
-describe('CoursesService premium access', () => {
+describe('CoursesService course purchase access', () => {
   const config = {
     get: jest.fn().mockReturnValue('bot-token'),
   } as unknown as ConfigService;
   const lesson = {
     id: 'lesson-id',
-    slug: 'premium-lesson',
-    title: 'Premium lesson',
+    slug: 'paid-lesson',
+    title: 'Paid lesson',
     description: null,
     type: 'TEXT',
     content: 'Protected content',
@@ -18,14 +18,14 @@ describe('CoursesService premium access', () => {
     isPreview: false,
     course: {
       id: 'course-id',
-      slug: 'premium-course',
-      title: 'Premium course',
-      isPremium: true,
+      slug: 'paid-course',
+      title: 'Paid course',
+      priceStars: 100,
     },
     quiz: null,
   };
 
-  it('keeps premium content locked for anonymous users', async () => {
+  it('keeps paid content locked for anonymous users', async () => {
     const prisma = {
       lesson: { findFirst: jest.fn().mockResolvedValue(lesson) },
       user: { findUnique: jest.fn() },
@@ -35,13 +35,13 @@ describe('CoursesService premium access', () => {
       config,
     );
 
-    const result = await service.findLesson('premium-course', 'premium-lesson');
+    const result = await service.findLesson('paid-course', 'paid-lesson');
 
     expect(result.locked).toBe(true);
     expect(result.content).toBeNull();
   });
 
-  it('returns premium content to active premium users', async () => {
+  it('returns paid content to users with active course access', async () => {
     const prisma = {
       lesson: { findFirst: jest.fn().mockResolvedValue(lesson) },
       user: {
@@ -61,8 +61,8 @@ describe('CoursesService premium access', () => {
     );
 
     const result = await service.findLesson(
-      'premium-course',
-      'premium-lesson',
+      'paid-course',
+      'paid-lesson',
       'user-id',
     );
 
@@ -99,7 +99,7 @@ describe('CoursesService premium access', () => {
           mediaData: Uint8Array.from(Buffer.from('%PDF-test')),
           mediaMimeType: 'application/pdf',
           mediaFileName: 'test.pdf',
-          course: { id: 'course-id', isPremium: true },
+          course: { id: 'course-id', priceStars: 100 },
         }),
       },
       user: { findUnique: jest.fn() },
@@ -116,7 +116,7 @@ describe('CoursesService premium access', () => {
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it('blocks stored premium media for anonymous users', async () => {
+  it('blocks stored paid media for anonymous users', async () => {
     const prisma = {
       lesson: {
         findFirst: jest.fn().mockResolvedValue({
@@ -124,7 +124,7 @@ describe('CoursesService premium access', () => {
           mediaData: Uint8Array.from(Buffer.from('%PDF-test')),
           mediaMimeType: 'application/pdf',
           mediaFileName: 'test.pdf',
-          course: { id: 'course-id', isPremium: true },
+          course: { id: 'course-id', priceStars: 100 },
         }),
       },
     };
@@ -145,7 +145,7 @@ describe('CoursesService premium access', () => {
           isPreview: false,
           telegramChatId: '-1001234567890',
           telegramMessageId: 42,
-          course: { id: 'course-id', isPremium: true },
+          course: { id: 'course-id', priceStars: 100 },
         }),
       },
       user: {

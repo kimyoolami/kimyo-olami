@@ -97,17 +97,10 @@ export class AuthService {
     lastName: string | null;
     username: string | null;
     role: string;
-    isPremium: boolean;
-    premiumUntil: Date | null;
   }) {
-    const isPremium =
-      user.role === 'ADMIN' ||
-      (user.isPremium &&
-        (user.premiumUntil === null || user.premiumUntil > new Date()));
     return {
       ...user,
       telegramId: user.telegramId.toString(),
-      isPremium,
     };
   }
 }

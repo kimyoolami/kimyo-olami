@@ -2,6 +2,11 @@
 
 Telegram Mini App orqali kimyo kurslari, video/PDF darslar, testlar va o‘quv progressini boshqarish platformasi.
 
+Har bir pullik kurs alohida sotiladi. Kurs uchun so‘m narxi, Telegram Stars
+narxi, kirish muddati va yopiq Telegram kanali administrator tomonidan alohida
+sozlanadi. Muvaffaqiyatli to‘lov faqat sotib olingan kursga muddatli kirish
+huquqini beradi.
+
 ## Texnologiyalar
 
 - Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS
@@ -71,6 +76,9 @@ docker compose exec backend npm run admin:promote -- TELEGRAM_ID
 - `GET /api/health/ready` — database tayyorligi
 - `POST /api/auth/telegram` — Telegram autentifikatsiyasi
 - `GET /api/courses` — nashr qilingan kurslar
+- `GET /api/payments/courses/:slug/plan` — kurs narxi va kirish muddati
+- `POST /api/payments/courses/:slug/telegram-stars/invoice` — kurs hisob-fakturasi
+- `GET /api/payments/my-courses` — foydalanuvchining faol kurslari
 - `GET /api/learning/progress` — foydalanuvchi progressi
 - `/api/admin/*` — faqat administrator uchun kontent boshqaruvi
 
@@ -95,7 +103,7 @@ npm run build
 - Kuchli, noyob `JWT_SECRET` va PostgreSQL paroli
 - Haqiqiy `TELEGRAM_BOT_TOKEN`
 - Backend CORS uchun aniq `FRONTEND_URL`
-- Tashqi video/PDF fayllari uchun barqaror HTTPS storage
+- Pullik kurs uchun to‘liq narx va bot administrator bo‘lgan Telegram kanal ID-si
 
 ## Render + Vercel deploy
 

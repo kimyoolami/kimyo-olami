@@ -9,7 +9,6 @@ describe('PaymentsService', () => {
       if (key === 'TELEGRAM_BOT_TOKEN') return 'bot-token';
       if (key === 'JWT_SECRET')
         return 'a-secure-jwt-secret-with-at-least-32-characters';
-      if (key === 'PREMIUM_PRICE_STARS') return '100';
       return undefined;
     }),
   };
@@ -26,7 +25,9 @@ describe('PaymentsService', () => {
     },
     courseAccess: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
+      deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -58,7 +59,7 @@ describe('PaymentsService', () => {
     prisma.payment.findUnique.mockResolvedValue({
       id: 'payment-id',
       userId: 'user-id',
-      payload: 'premium_payload',
+      payload: 'course_payload',
       amount: 100,
       currency: 'XTR',
       status: 'PENDING',
@@ -77,7 +78,7 @@ describe('PaymentsService', () => {
         successful_payment: {
           currency: 'XTR',
           total_amount: 100,
-          invoice_payload: 'premium_payload',
+          invoice_payload: 'course_payload',
           telegram_payment_charge_id: 'telegram-charge',
           provider_payment_charge_id: 'provider-charge',
         },
@@ -96,17 +97,17 @@ describe('PaymentsService', () => {
     );
   });
 
-  it('does not extend premium when another webhook already claimed the payment', async () => {
+  it('does not extend course access when another webhook already claimed the payment', async () => {
     prisma.payment.findUnique.mockResolvedValue({
       id: 'payment-id',
       userId: 'user-id',
-      payload: 'premium_payload',
+      payload: 'course_payload',
       amount: 100,
       currency: 'XTR',
       status: 'PENDING',
       courseId: 'course-id',
       course: { id: 'course-id', slug: 'video-yechimlar', title: 'Video yechimlar', accessDays: 30 },
-      user: { telegramId: 123456789n, premiumUntil: null },
+      user: { telegramId: 123456789n },
     });
     prisma.payment.updateMany.mockResolvedValue({ count: 0 });
 
@@ -116,7 +117,7 @@ describe('PaymentsService', () => {
         successful_payment: {
           currency: 'XTR',
           total_amount: 100,
-          invoice_payload: 'premium_payload',
+          invoice_payload: 'course_payload',
           telegram_payment_charge_id: 'telegram-charge',
           provider_payment_charge_id: 'provider-charge',
         },
@@ -165,6 +166,36 @@ describe('PaymentsService', () => {
     expect(JSON.parse(request.body)).toMatchObject({
       chat_id: '-1004499182599',
       member_limit: 1,
+    });
+  });
+
+  it('removes expired buyers from their course channel', async () => {
+    prisma.courseAccess.findMany.mockResolvedValue([
+      {
+        id: 'access-id',
+        expiresAt: new Date(Date.now() - 60_000),
+        user: { telegramId: 123456789n },
+        course: { telegramChannelId: '-1004499182599' },
+      },
+    ]);
+    prisma.courseAccess.deleteMany.mockResolvedValue({ count: 1 });
+
+    await (
+      service as unknown as {
+        cleanupExpiredChannelAccess(): Promise<void>;
+      }
+    ).cleanupExpiredChannelAccess();
+
+    const methods = (global.fetch as jest.Mock).mock.calls.map(
+      ([url]: [string]) => url,
+    );
+    expect(methods.some((url) => url.endsWith('/banChatMember'))).toBe(true);
+    expect(methods.some((url) => url.endsWith('/unbanChatMember'))).toBe(true);
+    expect(prisma.courseAccess.deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: 'access-id',
+        expiresAt: { lte: expect.any(Date) },
+      },
     });
   });
 });

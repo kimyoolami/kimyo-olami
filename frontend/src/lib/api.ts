@@ -12,7 +12,6 @@ export interface CourseSummary {
   title: string;
   description: string | null;
   imageUrl: string | null;
-  isPremium: boolean;
   priceStars: number | null;
   priceUzs: number | null;
   accessDays: number;
@@ -23,8 +22,6 @@ export interface AuthUser {
   id: string;
   firstName: string | null;
   username: string | null;
-  isPremium: boolean;
-  premiumUntil: string | null;
   role: "STUDENT" | "ADMIN";
 }
 
@@ -62,7 +59,6 @@ export function createAdminCourse(data: {
   slug: string;
   title: string;
   description?: string;
-  isPremium: boolean;
   isPublished: boolean;
   priceStars?: number;
   priceUzs?: number;
@@ -80,7 +76,6 @@ export function updateAdminCourse(
   data: Partial<{
     title: string;
     description: string;
-    isPremium: boolean;
     isPublished: boolean;
     order: number;
     priceStars: number;
@@ -216,7 +211,7 @@ export interface LessonDetails {
   isPreview: boolean;
   locked: boolean;
   telegramVideoAvailable: boolean;
-  course: { slug: string; title: string; isPremium: boolean };
+  course: { slug: string; title: string; priceStars: number | null };
   quiz: { id: string; title: string; passScore: number } | null;
 }
 
@@ -308,7 +303,7 @@ export interface PdfMaterial {
   course: {
     slug: string;
     title: string;
-    isPremium: boolean;
+    priceStars: number | null;
   };
 }
 

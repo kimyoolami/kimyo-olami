@@ -100,7 +100,7 @@ export class LearningService {
             isPreview: true,
             isPublished: true,
             course: {
-              select: { id: true, slug: true, isPremium: true, isPublished: true },
+              select: { id: true, slug: true, priceStars: true, isPublished: true },
             },
           },
         },
@@ -121,7 +121,7 @@ export class LearningService {
     await this.assertCourseAccess(
       userId,
       quiz.lesson.course.id,
-      quiz.lesson.course.isPremium && !quiz.lesson.isPreview,
+      Boolean(quiz.lesson.course.priceStars) && !quiz.lesson.isPreview,
     );
     return quiz;
   }
@@ -140,7 +140,7 @@ export class LearningService {
     await this.assertCourseAccess(
       userId,
       quiz.lesson.course.id,
-      quiz.lesson.course.isPremium && !quiz.lesson.isPreview,
+      Boolean(quiz.lesson.course.priceStars) && !quiz.lesson.isPreview,
     );
 
     const answers = new Map(
@@ -194,14 +194,14 @@ export class LearningService {
       where: { id: lessonId, isPublished: true, course: { isPublished: true } },
       select: {
         isPreview: true,
-        course: { select: { id: true, isPremium: true } },
+        course: { select: { id: true, priceStars: true } },
       },
     });
     if (!lesson) throw new NotFoundException('Dars topilmadi');
     await this.assertCourseAccess(
       userId,
       lesson.course.id,
-      lesson.course.isPremium && !lesson.isPreview,
+      Boolean(lesson.course.priceStars) && !lesson.isPreview,
     );
   }
 
